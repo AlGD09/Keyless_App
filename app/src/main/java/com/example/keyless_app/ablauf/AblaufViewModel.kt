@@ -27,9 +27,11 @@ class AblaufViewModel @Inject constructor(
             _status.value = Status.CloudSuccess
 
             _status.value = Status.BLEStarting
-            val result = bleManager.startAuthentication(token)
+            bleManager.startAdvertisingForDuration(10_000)
+            //val result = bleManager.startAuthentication(token)
+            _status.value = Status.BLEStopped
 
-            _status.value = if (result) Status.AuthSuccess else Status.Error("Auth failed")
+            //_status.value = if (result) Status.AuthSuccess else Status.Error("Auth failed")
         }
     }
 
@@ -43,6 +45,7 @@ sealed class Status(val label: String) {
     object CloudConnecting : Status("Cloud: Verbindung...")
     object CloudSuccess : Status("Cloud: Erfolgreich ✅")
     object BLEStarting : Status("BLE: Läuft...")
+    object BLEStopped : Status("BLE gestoppt.")
     object AuthSuccess : Status("Authentifiziert ✅")
     data class Error(val msg: String) : Status("Fehler: $msg")
 }
