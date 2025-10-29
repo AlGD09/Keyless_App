@@ -23,13 +23,18 @@ class AblaufViewModel @Inject constructor(
     fun startProcess() {
         viewModelScope.launch {
             _status.value = Status.CloudConnecting
-            val token = cloudClient.fetchToken()
+            val token = cloudClient.fetchToken() ?: throw Exception("Token-Fehler")
             _status.value = Status.CloudSuccess
 
             _status.value = Status.BLEStarting
-            bleManager.startAdvertisingForDuration(10_000)
-            //val result = bleManager.startAuthentication(token)
+            bleManager.startGattServer()
+            _status.value = Status.BLEServer
+            _status.value = Status.BLEAdvertise
+            bleManager.startAdvertisingForDuration(30_000)
+
+
             _status.value = Status.BLEStopped
+            bleManager.stopGattServer()
 
             //_status.value = if (result) Status.AuthSuccess else Status.Error("Auth failed")
         }
@@ -43,10 +48,12 @@ class AblaufViewModel @Inject constructor(
 sealed class Status(val label: String) {
     object Idle : Status("Bereit")
     object CloudConnecting : Status("Cloud: Verbindung...")
-    object CloudSuccess : Status("Cloud: Erfolgreich ✅")
+    object CloudSuccess : Status("Cloud: Erfolgreich")
     object BLEStarting : Status("BLE: Läuft...")
+    object BLEServer : Status("GATT Server gestartet")
+    object BLEAdvertise : Status("Advertising gestartet für 30s")
     object BLEStopped : Status("BLE gestoppt.")
-    object AuthSuccess : Status("Authentifiziert ✅")
+    object AuthSuccess : Status("Authentifiziert")
     data class Error(val msg: String) : Status("Fehler: $msg")
 }
 
