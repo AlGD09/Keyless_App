@@ -36,7 +36,8 @@ fun AblaufScreen(
 
         val buttonText = when (status) {
             Status.Error, Status.ErrorToken -> "Retry"
-            else -> "Start"
+            Status.Idle -> "Start"
+            else -> "Loading..."
         }
 
         Button(onClick = { viewModel.startProcess() }) {

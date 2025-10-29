@@ -21,6 +21,14 @@ class AblaufViewModel @Inject constructor(
     private val _status = MutableStateFlow<Status>(Status.Idle)
     val status = _status.asStateFlow()
 
+    init {
+        bleManager.onAuthenticated = {
+            viewModelScope.launch {
+                _status.value = Status.Authentifiziert
+            }
+        }
+    }
+
     fun startProcess() {
         viewModelScope.launch {
             _status.value = Status.CloudConnecting
@@ -61,12 +69,13 @@ class AblaufViewModel @Inject constructor(
 
 sealed class Status(val label: String) {
     object Idle : Status("Bereit")
-    object CloudConnecting : Status("Cloud: Verbindung...")
-    object CloudSuccess : Status("Cloud: Erfolgreich")
+    object CloudConnecting : Status("Verbindungsversuch mit der Cloud")
+    object CloudSuccess : Status("Cloud-Verbindung erfolgreich")
     object BLEStarting : Status("BLE: Läuft...")
     object BLEServer : Status("GATT Server gestartet")
     object BLEAdvertise : Status("Advertising gestartet für 30s")
     object BLEStopped : Status("BLE gestoppt.")
+    object Authentifiziert : Status("Authentifizierung erfolgreich")
     object ErrorToken : Status ("Gerät nicht authentifiziert")
     object Error : Status ("Cloud- oder BLE Fehler")
 }

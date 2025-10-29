@@ -31,6 +31,8 @@ class BLEManager @Inject constructor(
 
     private var authToken : String? = null
 
+    var onAuthenticated: (() -> Unit)? = null
+
     /**
      * Startet den BLE-Authentifizierungsprozess.
      * @param token Token, das von der Cloud erhalten wurde.
@@ -177,6 +179,9 @@ class BLEManager @Inject constructor(
                 val response = responseValue ?: ByteArray(0)
                 //Log.i("BLEManager", "Response gelesen: ${String(response)}")
                 gattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, response)
+                if (responseValue != null) {
+                    onAuthenticated?.invoke()
+                }
             }
         }
     }
