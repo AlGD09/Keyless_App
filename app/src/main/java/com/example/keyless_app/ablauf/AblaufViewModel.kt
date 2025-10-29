@@ -25,7 +25,7 @@ class AblaufViewModel @Inject constructor(
             _status.value = Status.CloudConnecting
             val token = cloudClient.fetchToken() ?: throw Exception("Token-Fehler")
             _status.value = Status.CloudSuccess
-
+            bleManager.setToken(token)
             _status.value = Status.BLEStarting
             bleManager.startGattServer()
             _status.value = Status.BLEServer

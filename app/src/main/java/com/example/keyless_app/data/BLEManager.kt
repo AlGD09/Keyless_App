@@ -29,6 +29,8 @@ class BLEManager @Inject constructor(
     private var gattServer: BluetoothGattServer? = null
     private var responseValue: ByteArray? = null
 
+    private var authToken : String? = null
+
     /**
      * Startet den BLE-Authentifizierungsprozess.
      * @param token Token, das von der Cloud erhalten wurde.
@@ -179,8 +181,13 @@ class BLEManager @Inject constructor(
         }
     }
 
+    fun setToken(token: String){
+        authToken = token
+    }
+
     private fun processChallenge(challengeBytes: ByteArray): ByteArray {
-        val keyHex = "93c3d96d4af048af94c2f976df66ea38"
+        //val keyHex = "93c3d96d4af048af94c2f976df66ea38"
+        val keyHex = authToken ?: throw IllegalStateException("Kein Token erhalten")
         val keyBytes = keyHex.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
         val mac = Mac.getInstance("HmacSHA256")
         val keySpec = SecretKeySpec(keyBytes, "HmacSHA256")
