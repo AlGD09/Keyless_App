@@ -195,6 +195,4 @@ class BLEManager @Inject constructor(
         return mac.doFinal(challengeBytes)  // 32-Byte Digest wie in Python
     }
 
-
-
 }

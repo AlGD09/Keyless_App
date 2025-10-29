@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import android.util.Log
 
 @HiltViewModel
 class AblaufViewModel @Inject constructor(
@@ -24,7 +25,7 @@ class AblaufViewModel @Inject constructor(
         viewModelScope.launch {
             _status.value = Status.CloudConnecting
             try {
-                val token = cloudClient.fetchToken() ?: throw Exception("Token-Fehler")
+                val token = cloudClient.fetchToken() ?: throw Exception("Cloud-Fehler")
                 if (token.isEmpty()){
                     _status.value = Status.ErrorToken
                 }
@@ -40,7 +41,13 @@ class AblaufViewModel @Inject constructor(
                 _status.value = Status.BLEStopped
                 bleManager.stopGattServer()
             } catch (e: Exception) {
-                _status.value = Status.Error
+                if (e.message?.contains("401") == true || e.message?.contains("Unauthorized") == true) {
+                    _status.value = Status.ErrorToken
+                    Log.e("AblaufViewModel", "Authentifizierungsfehler: ${e.message}")
+                } else {
+                    _status.value = Status.Error
+                    Log.e("AblaufViewModel", "Allgemeiner Fehler: ${e.message}")
+                }
             }
 
 

@@ -48,12 +48,13 @@ class CloudClient @Inject constructor() {
                 Log.i("CloudClient", "Token erfolgreich empfangen: $token")
                 token
             } else {
-                Log.e("CloudClient", "Fehler: ${response.code()} ${response.message()}")
-                null
+                val errorMessage = "Fehler: ${response.code()} ${response.message()}"
+                Log.e("CloudClient", errorMessage)
+                throw Exception(errorMessage)
             }
         } catch (e: Exception) {
             Log.e("CloudClient", "Verbindungsfehler: ${e.message}")
-            null
+            throw e
         }
     }
 }
