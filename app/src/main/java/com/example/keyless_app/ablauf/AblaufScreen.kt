@@ -34,14 +34,13 @@ fun AblaufScreen(
 
         Spacer(Modifier.height(40.dp))
 
-        Button(onClick = { viewModel.startProcess() }) {
-            Text("Start")
+        val buttonText = when (status) {
+            Status.Error, Status.ErrorToken -> "Retry"
+            else -> "Start"
         }
 
-        Spacer(Modifier.height(10.dp))
-
-        Button(onClick = { viewModel.retry() }) {
-            Text("Retry")
+        Button(onClick = { viewModel.startProcess() }) {
+            Text(buttonText)
         }
     }
 }

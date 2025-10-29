@@ -36,10 +36,9 @@ class AblaufViewModel @Inject constructor(
                 _status.value = Status.BLEServer
                 _status.value = Status.BLEAdvertise
                 bleManager.startAdvertisingForDuration(30_000)
-
-
                 _status.value = Status.BLEStopped
                 bleManager.stopGattServer()
+                _status.value = Status.Idle
             } catch (e: Exception) {
                 if (e.message?.contains("401") == true || e.message?.contains("Unauthorized") == true) {
                     _status.value = Status.ErrorToken
@@ -68,7 +67,6 @@ sealed class Status(val label: String) {
     object BLEServer : Status("GATT Server gestartet")
     object BLEAdvertise : Status("Advertising gestartet für 30s")
     object BLEStopped : Status("BLE gestoppt.")
-    object AuthSuccess : Status("Authentifiziert")
     object ErrorToken : Status ("Gerät nicht authentifiziert")
     object Error : Status ("Cloud- oder BLE Fehler")
 }
