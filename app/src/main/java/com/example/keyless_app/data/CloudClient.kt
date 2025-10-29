@@ -14,7 +14,7 @@ import javax.inject.Singleton
  */
 class CloudClient @Inject constructor() {
 
-    private val baseUrl = "http://192.168.0.100:8080/"   // ← IP hier einsetzen
+    private val baseUrl = "http://10.42.0.1:8080/"   // ← IP hier einsetzen
 
     private val api: CloudApi
 
@@ -44,7 +44,7 @@ class CloudClient @Inject constructor() {
         return try {
             val response = api.requestToken(TokenRequest(userName, deviceId, secretHash))
             if (response.isSuccessful) {
-                val token = response.body()?.token
+                val token = response.body()?.auth_token
                 Log.i("CloudClient", "Token erfolgreich empfangen: $token")
                 token
             } else {

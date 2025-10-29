@@ -7,5 +7,5 @@ data class TokenRequest(
 )
 
 data class TokenResponse(
-    val token: String?
+    val auth_token: String?
 )
