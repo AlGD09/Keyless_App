@@ -23,20 +23,28 @@ class AblaufViewModel @Inject constructor(
     fun startProcess() {
         viewModelScope.launch {
             _status.value = Status.CloudConnecting
-            val token = cloudClient.fetchToken() ?: throw Exception("Token-Fehler")
-            _status.value = Status.CloudSuccess
-            bleManager.setToken(token)
-            _status.value = Status.BLEStarting
-            bleManager.startGattServer()
-            _status.value = Status.BLEServer
-            _status.value = Status.BLEAdvertise
-            bleManager.startAdvertisingForDuration(30_000)
+            try {
+                val token = cloudClient.fetchToken() ?: throw Exception("Token-Fehler")
+                if (token.isEmpty()){
+                    _status.value = Status.ErrorToken
+                }
+                _status.value = Status.CloudSuccess
+                bleManager.setToken(token)
+                _status.value = Status.BLEStarting
+                bleManager.startGattServer()
+                _status.value = Status.BLEServer
+                _status.value = Status.BLEAdvertise
+                bleManager.startAdvertisingForDuration(30_000)
 
 
-            _status.value = Status.BLEStopped
-            bleManager.stopGattServer()
+                _status.value = Status.BLEStopped
+                bleManager.stopGattServer()
+            } catch (e: Exception) {
+                _status.value = Status.Error
+            }
 
-            //_status.value = if (result) Status.AuthSuccess else Status.Error("Auth failed")
+
+
         }
     }
 
@@ -54,7 +62,8 @@ sealed class Status(val label: String) {
     object BLEAdvertise : Status("Advertising gestartet für 30s")
     object BLEStopped : Status("BLE gestoppt.")
     object AuthSuccess : Status("Authentifiziert")
-    data class Error(val msg: String) : Status("Fehler: $msg")
+    object ErrorToken : Status ("Gerät nicht authentifiziert")
+    object Error : Status ("Cloud- oder BLE Fehler")
 }
 
 
