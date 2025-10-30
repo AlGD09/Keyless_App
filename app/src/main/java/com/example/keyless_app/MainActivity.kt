@@ -1,9 +1,10 @@
 package com.example.keyless_app
 
-
+import android.content.Context
 import android.Manifest
 import android.os.Build
 import android.os.Bundle
+import androidx.compose.runtime.*
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -16,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.app.ActivityCompat
 import com.example.keyless_app.ablauf.AblaufScreen
+import com.example.keyless_app.register.RegisterScreen
 import com.example.keyless_app.ui.theme.Keyless_AppTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -39,10 +41,22 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             Keyless_AppTheme {
-                AblaufScreen()
+                var isRegistered by remember { mutableStateOf(isUserRegistered(this)) }
 
+                if (isRegistered) {
+                    AblaufScreen()
+                } else {
+                    RegisterScreen(onRegistered = { isRegistered = true })
+                }
             }
         }
+    }
+
+    private fun isUserRegistered(context: Context): Boolean {
+        val prefs = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+        val userName = prefs.getString("userName", null)
+        val secretHash = prefs.getString("secretHash", null)
+        return !userName.isNullOrBlank() && !secretHash.isNullOrBlank()
     }
 
 

@@ -16,7 +16,7 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideCloudClient(): CloudClient = CloudClient()
+    fun provideCloudClient(@ApplicationContext context: Context): CloudClient = CloudClient(context)
 
     @Provides
     @Singleton

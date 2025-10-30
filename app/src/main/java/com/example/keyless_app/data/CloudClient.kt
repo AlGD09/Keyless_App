@@ -8,15 +8,26 @@ import retrofit2.converter.gson.GsonConverterFactory
 import javax.inject.Inject
 import javax.inject.Singleton
 
+import android.content.Context
+import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
+import dagger.hilt.android.qualifiers.ApplicationContext
+
 /**
  * CloudClient – verwaltet die Kommunikation mit der Cloud.
  * Zunächst eine simulierte (Mock-) Implementierung.
  */
-class CloudClient @Inject constructor() {
+class CloudClient @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
 
     private val baseUrl = "http://10.42.0.1:8080/"   // ← IP hier einsetzen
 
     private val api: CloudApi
+
+
+
+
 
     init {
         val logger = HttpLoggingInterceptor().apply {
@@ -37,9 +48,12 @@ class CloudClient @Inject constructor() {
     }
 
     suspend fun fetchToken(): String? {
-        val userName = "Admin"           // später dynamisch
+        val prefs = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+        //val userName = "Admin"           // später dynamisch
         val deviceId = "bd45e75870af93c2"    // dein BLE-Device-ID
-        val secretHash = "cc03e747a6afbbcbf8be7668acfebee5"   // Dummy-Wert
+        //val secretHash = "cc03e747a6afbbcbf8be7668acfebee5"   // Dummy-Wert
+        val userName = prefs.getString("userName", "") ?: ""
+        val secretHash = prefs.getString("secretHash", "") ?: ""
 
         return try {
             val response = api.requestToken(TokenRequest(userName, deviceId, secretHash))
