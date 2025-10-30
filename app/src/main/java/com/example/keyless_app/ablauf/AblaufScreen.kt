@@ -14,7 +14,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 
 @Composable
 fun AblaufScreen(
-    viewModel: AblaufViewModel = hiltViewModel()
+    viewModel: AblaufViewModel = hiltViewModel(),
+    onLogout: () -> Unit
 ) {
     // ViewModel-Status als State beobachten
     val status by viewModel.status.collectAsState()
@@ -42,6 +43,12 @@ fun AblaufScreen(
 
         Button(onClick = { viewModel.startProcess() }) {
             Text(buttonText)
+        }
+
+        Spacer(Modifier.height(20.dp))
+
+        OutlinedButton(onClick = { onLogout() }) {
+            Text("Logout")
         }
     }
 }

@@ -41,10 +41,14 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             Keyless_AppTheme {
-                var isRegistered by remember { mutableStateOf(isUserRegistered(this)) }
+                val context = this
+                var isRegistered by remember { mutableStateOf(isUserRegistered(context)) }
 
                 if (isRegistered) {
-                    AblaufScreen()
+                    AblaufScreen(onLogout = {
+                        clearCredentials(context)
+                        isRegistered = false
+                    })
                 } else {
                     RegisterScreen(onRegistered = { isRegistered = true })
                 }
@@ -57,6 +61,11 @@ class MainActivity : ComponentActivity() {
         val userName = prefs.getString("userName", null)
         val secretHash = prefs.getString("secretHash", null)
         return !userName.isNullOrBlank() && !secretHash.isNullOrBlank()
+    }
+
+    private fun clearCredentials(context: Context) {
+        val prefs = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+        prefs.edit().clear().apply()
     }
 
 
