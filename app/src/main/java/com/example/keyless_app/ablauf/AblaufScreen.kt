@@ -10,6 +10,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -75,6 +76,29 @@ fun AblaufScreen(
             .padding(20.dp),
         contentAlignment = Alignment.Center
     ) {
+
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .clickable { onLogout() }
+                .padding(top = 40.dp, end = 0.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.End
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.logouticon),
+                contentDescription = "Logout",
+                tint = Color.White,
+                modifier = Modifier.size(28.dp)
+            )
+            Spacer(modifier = Modifier.width(0.5.dp))
+            Text(
+                text = "Logout",
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.Center,
@@ -156,9 +180,7 @@ fun AblaufScreen(
 
             Spacer(Modifier.height(20.dp))
 
-            OutlinedButton(onClick = { onLogout() }) {
-                Text("Logout")
-            }
+
 
             // Authentifizierungsdialog anzeigen
             if (status == Status.Authentifiziert) {
