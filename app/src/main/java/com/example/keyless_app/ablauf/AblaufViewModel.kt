@@ -32,6 +32,9 @@ class AblaufViewModel @Inject constructor(
         bleManager.onAuthenticated = {
             viewModelScope.launch {
                 _status.value = Status.Authentifiziert
+
+                kotlinx.coroutines.delay(5000)
+
             }
         }
     }
