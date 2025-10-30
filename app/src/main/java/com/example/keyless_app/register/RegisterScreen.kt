@@ -1,13 +1,18 @@
 package com.example.keyless_app.register
 
 import android.content.Context
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.keyless_app.R
 
 @Composable
 fun RegisterScreen(onRegistered: () -> Unit) {
@@ -23,8 +28,51 @@ fun RegisterScreen(onRegistered: () -> Unit) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Registrierung", style = MaterialTheme.typography.headlineMedium)
-        Spacer(Modifier.height(20.dp))
+        // --- Kopfzeile mit Logo und Text ---
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Top,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            // Logo oben
+            Image(
+                painter = painterResource(id = R.drawable.keylesslogo2),
+                contentDescription = "App Logo",
+                modifier = Modifier
+                    .size(200.dp)
+                    .padding(bottom = 0.dp)
+            )
+
+            // Text unterhalb des Logos
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "Keyless",
+                    color = Color.Gray,
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Text(
+                    text = "App",
+                    color = Color.Gray,
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+        }
+
+
+        Spacer(Modifier.height(30.dp))
+
+        Text(
+            text = "Registrierung",
+            style = MaterialTheme.typography.titleLarge,
+            color = Color.Gray,
+            textAlign = TextAlign.Start,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start =20.dp, bottom = 5.dp)
+        )
 
         OutlinedTextField(
             value = userName,

@@ -2,6 +2,7 @@ package com.example.keyless_app.ablauf
 
 
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -9,11 +10,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 //import androidx.navigation.NavController
+import com.example.keyless_app.R
+
+
 
 @Composable
 fun AblaufScreen(
@@ -31,13 +37,44 @@ fun AblaufScreen(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Keyless Access", style = MaterialTheme.typography.headlineMedium)
+        // --- Kopfzeile mit Logo und Text ---
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Top,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            // Logo oben
+            Image(
+                painter = painterResource(id = R.drawable.keylesslogo2),
+                contentDescription = "App Logo",
+                modifier = Modifier
+                    .size(200.dp)
+                    .padding(bottom = 0.dp)
+            )
 
-        Spacer(Modifier.height(20.dp))
+            // Text unterhalb des Logos
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "Keyless",
+                    color = Color.Gray,
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Text(
+                    text = "App",
+                    color = Color.Gray,
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+        }
+
+        Spacer(Modifier.height(40.dp))
 
         Text("Status: ${status.label}")
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(10.dp))
 
         // Maschinenliste anzeigen (sobald geladen)
         if (machines.isNotEmpty()) {
@@ -61,7 +98,7 @@ fun AblaufScreen(
             }
         }
 
-        Spacer(Modifier.height(40.dp))
+        Spacer(Modifier.height(10.dp))
 
         val buttonText = when (status) {
             Status.Error, Status.ErrorToken -> "Retry"

@@ -71,8 +71,6 @@ class AblaufViewModel @Inject constructor(
                 }
             }
 
-
-
         }
     }
 
