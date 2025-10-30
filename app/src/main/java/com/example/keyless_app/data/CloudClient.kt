@@ -71,4 +71,33 @@ class CloudClient @Inject constructor(
             throw e
         }
     }
+
+    suspend fun fetchAssignedMachines(): List<Machine> {
+        val deviceId = "bd45e75870af93c2"
+
+        return try {
+            val response = api.requestRcus(deviceId)
+
+            if (response.isSuccessful) {
+                val rcus = response.body() ?: emptyList()
+                val machines = rcus.map { rcu ->
+                    Machine(
+                        name = rcu.name,
+                        location = rcu.location.ifBlank { "unbekannter Ort" }
+                    )
+                }
+                Log.i("CloudClient", "Zugewiesene Maschinen empfangen: ${machines.size}")
+                machines
+            } else {
+                Log.e(
+                    "CloudClient",
+                    "Fehler beim Abrufen der Maschinen: ${response.code()} ${response.message()}"
+                )
+                emptyList()
+            }
+        } catch (e: Exception) {
+            Log.e("CloudClient", "Fehler beim Abrufen der Maschinen: ${e.message}")
+            emptyList()
+        }
+    }
 }

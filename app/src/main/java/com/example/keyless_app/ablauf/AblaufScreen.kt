@@ -19,6 +19,7 @@ fun AblaufScreen(
 ) {
     // ViewModel-Status als State beobachten
     val status by viewModel.status.collectAsState()
+    val machines by viewModel.machines.collectAsState()
 
     Column(
         modifier = Modifier
@@ -32,6 +33,30 @@ fun AblaufScreen(
         Spacer(Modifier.height(20.dp))
 
         Text("Status: ${status.label}")
+
+        Spacer(Modifier.height(20.dp))
+
+        // Maschinenliste anzeigen (sobald geladen)
+        if (machines.isNotEmpty()) {
+            Text("Zugewiesene Maschinen:", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+
+            machines.forEachIndexed { index, machine ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text("Maschine ${index + 1}: ${machine.name}")
+                        Text("Ort: ${machine.location}")
+                    }
+                }
+            }
+        }
 
         Spacer(Modifier.height(40.dp))
 
