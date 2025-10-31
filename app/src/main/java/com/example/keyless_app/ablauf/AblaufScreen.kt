@@ -22,7 +22,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -146,7 +149,7 @@ fun AblaufScreen(
 
             // Maschinenliste anzeigen (sobald geladen)
             if (machines.isNotEmpty()) {
-                Text("Zugewiesene Maschinen:", style = MaterialTheme.typography.titleMedium)
+                Text("Zugewiesene Maschinen:", style = MaterialTheme.typography.titleMedium, color = Color.White, modifier = Modifier.align(Alignment.Start))
                 Spacer(Modifier.height(8.dp))
 
                 machines.forEachIndexed { index, machine ->
@@ -155,12 +158,21 @@ fun AblaufScreen(
                             .fillMaxWidth()
                             .padding(vertical = 4.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            containerColor = Color(0xFF002B49), // Dunkelblau
+                            contentColor = Color.White // Textfarbe in der Card
                         )
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
-                            Text("Maschine ${index + 1}: ${machine.name}")
-                            Text("Ort: ${machine.location}")
+                            Text(
+                                buildAnnotatedString {
+                                    withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                                        append("Maschine ${index + 1}")
+                                    }
+                                    append(" - ${machine.name}")
+                                }
+                            )
+
+                            Text("Standort: ${machine.location}")
                         }
                     }
                 }
@@ -168,14 +180,45 @@ fun AblaufScreen(
 
             Spacer(Modifier.height(10.dp))
 
-            val buttonText = when (status) {
-                Status.Error, Status.ErrorToken -> "Retry"
-                Status.Idle -> "Start"
-                else -> "Loading..."
+            val buttonText: String
+            val buttonColor: Color
+
+            when (status) {
+                Status.Error, Status.ErrorToken -> {
+                    buttonText = "Retry"
+                    buttonColor = Color(0xFFB71C1C) // Rot
+                }
+                Status.Idle -> {
+                    buttonText = "Start"
+                    buttonColor = Color(0xFF2E7D32) // Grün
+                }
+                else -> {
+                    buttonText = "Loading..."
+                    buttonColor = Color(0xFFF57C00) // Orange
+                }
             }
 
-            Button(onClick = { viewModel.startProcess() }) {
-                Text(text = buttonText, fontSize = 18.sp)
+            Button(
+                onClick = { viewModel.startProcess() },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = buttonColor,
+                    contentColor = Color.White // Textfarbe
+                )
+            ) {
+                if (buttonText == "Loading...") {
+                    Box(contentAlignment = Alignment.TopStart) {
+                        // Unsichtbarer Platzhalter, damit die Breite fix bleibt
+                        Text(
+                            text = "Loading...",
+                            fontSize = 18.sp,
+                            color = Color.Transparent
+                        )
+                        // Sichtbarer animierter Text
+                        LoadingText(baseText = "Loading", intervalMillis = 800)
+                    }
+                } else {
+                    Text(text = buttonText, fontSize = 18.sp)
+                }
             }
 
             Spacer(Modifier.height(20.dp))
@@ -218,3 +261,16 @@ fun AblaufScreen(
     }
 }
 
+@Composable
+fun LoadingText(baseText: String = "Loading", intervalMillis: Int = 1000) {
+    var dotCount by remember { mutableStateOf(0) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            dotCount = (dotCount + 1) % 4
+            kotlinx.coroutines.delay(intervalMillis.toLong())
+        }
+    }
+
+    Text(text = baseText + ".".repeat(dotCount), fontSize = 18.sp)
+}
