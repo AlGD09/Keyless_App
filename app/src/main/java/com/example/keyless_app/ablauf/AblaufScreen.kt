@@ -162,17 +162,40 @@ fun AblaufScreen(
                             contentColor = Color.White // Textfarbe in der Card
                         )
                     ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text(
-                                buildAnnotatedString {
-                                    withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
-                                        append("Maschine ${index + 1}")
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text(
+                                    buildAnnotatedString {
+                                        withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                                            append("Maschine ${index + 1}")
+                                        }
+                                        append(" - ${machine.name}")
                                     }
-                                    append(" - ${machine.name}")
-                                }
-                            )
+                                )
+                                Text("Standort: ${machine.location}")
+                            }
 
-                            Text("Standort: ${machine.location}")
+                            // Bild je nach Maschinentyp auswählen
+                            val imageRes = when {
+                                machine.name.contains("Bagger", ignoreCase = true) -> R.drawable.baggersymbol
+                                machine.name.contains("Kuka", ignoreCase = true) -> R.drawable.kukasymbol
+                                machine.name.contains("Walze", ignoreCase = true) -> R.drawable.walzesymbol
+                                else -> R.drawable.maschinesymbol
+                            }
+
+                            Image(
+                                painter = painterResource(id = imageRes),
+                                contentDescription = "Maschinen-Symbol",
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .padding(start = 8.dp)
+                            )
                         }
                     }
                 }
