@@ -7,7 +7,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import javax.inject.Inject
 import javax.inject.Singleton
-
+import android.provider.Settings
 import android.content.Context
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
@@ -50,7 +50,8 @@ class CloudClient @Inject constructor(
     suspend fun fetchToken(): String? {
         val prefs = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
         //val userName = "Admin"           // später dynamisch
-        val deviceId = "bd45e75870af93c2"    // dein BLE-Device-ID
+        //val deviceId = "bd45e75870af93c2"    // dein BLE-Device-ID
+        val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
         //val secretHash = "cc03e747a6afbbcbf8be7668acfebee5"   // Dummy-Wert
         val userName = prefs.getString("userName", "") ?: ""
         val secretHash = prefs.getString("secretHash", "") ?: ""
@@ -73,7 +74,8 @@ class CloudClient @Inject constructor(
     }
 
     suspend fun fetchAssignedMachines(): List<Machine> {
-        val deviceId = "bd45e75870af93c2"
+        //val deviceId = "bd45e75870af93c2"
+        val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
 
         return try {
             val response = api.requestRcus(deviceId)

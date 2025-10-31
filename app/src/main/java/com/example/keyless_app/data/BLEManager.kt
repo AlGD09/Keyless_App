@@ -16,6 +16,7 @@ import android.util.Log
 import kotlinx.coroutines.delay
 import javax.inject.Inject
 import java.util.UUID
+import android.provider.Settings
 /**
  * BLEManager – verwaltet die Bluetooth-Kommunikation mit der RCU.
  * Zunächst als Dummy-Implementierung mit simuliertem Ablauf.
@@ -61,12 +62,22 @@ class BLEManager @Inject constructor(
             .setConnectable(true)  // Später "true" für die RCU wichtig
             .build()
 
-        // Manufacturer Data – Company ID 0xFFFF, Device ID bd45e75870af93c2
+        // Manufacturer Data – Company ID 0xFFFF
         val manufacturerId = 0xFFFF
-        val deviceIdBytes = byteArrayOf(
+        fun hexStringToByteArray(hex: String): ByteArray {
+            require(hex.length % 2 == 0) { "Ungültige Hex-Länge" }
+            return ByteArray(hex.length / 2) { i ->
+                ((hex.substring(i * 2, i * 2 + 2).toInt(16)) and 0xFF).toByte()
+            }
+        }
+
+        val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+        val deviceIdBytes = hexStringToByteArray(deviceId)
+        // Device ID bd45e75870af93c2
+        /*val deviceIdBytes = byteArrayOf(
             0xBD.toByte(), 0x45.toByte(), 0xE7.toByte(), 0x58.toByte(),
             0x70.toByte(), 0xAF.toByte(), 0x93.toByte(), 0xC2.toByte()
-        )
+        )*/
 
         val data = AdvertiseData.Builder()
             .addManufacturerData(manufacturerId, deviceIdBytes)
