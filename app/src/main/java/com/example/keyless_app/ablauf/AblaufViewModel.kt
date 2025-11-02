@@ -13,11 +13,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import android.util.Log
+import android.provider.Settings
 import com.example.keyless_app.data.Machine
 import dagger.hilt.android.qualifiers.ApplicationContext
 
 @HiltViewModel
 class AblaufViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val cloudClient: CloudClient,
     private val bleManager: BLEManager
 ) : ViewModel() {
@@ -27,6 +29,9 @@ class AblaufViewModel @Inject constructor(
 
     private val _machines = MutableStateFlow<List<Machine>>(emptyList())
     val machines: StateFlow<List<Machine>> = _machines
+
+    private val _showUserInfoDialog = MutableStateFlow(false)
+    val showUserInfoDialog = _showUserInfoDialog.asStateFlow()
 
     init {
         bleManager.onAuthenticated = {
@@ -72,6 +77,19 @@ class AblaufViewModel @Inject constructor(
             }
 
         }
+    }
+
+    fun toggleUserInfoDialog() {
+        _showUserInfoDialog.value = !_showUserInfoDialog.value
+    }
+
+    fun getUserName(): String {
+        val prefs = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+        return prefs.getString("userName", "") ?: "Unbekannt"
+    }
+
+    fun getDeviceId(): String {
+        return Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
     }
 
 }

@@ -12,6 +12,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
@@ -24,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
@@ -44,6 +47,7 @@ fun AblaufScreen(
     // ViewModel-Status als State beobachten
     val status by viewModel.status.collectAsState()
     val machines by viewModel.machines.collectAsState()
+    val showUserInfoDialog by viewModel.showUserInfoDialog.collectAsState()
 
     // --- Animierter Farbverlauf-Hintergrund ---
     val infiniteTransition = rememberInfiniteTransition()
@@ -82,26 +86,44 @@ fun AblaufScreen(
 
         Row(
             modifier = Modifier
-                .align(Alignment.TopEnd)
-                .clickable { onLogout() }
-                .padding(top = 40.dp, end = 0.dp),
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .padding(top = 40.dp, start = 10.dp, end = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.End
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Icon(
-                painter = painterResource(id = R.drawable.logouticon),
-                contentDescription = "Logout",
+                painter = painterResource(id = R.drawable.infosymbol),
+                contentDescription = "Info",
                 tint = Color.White,
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier
+                    .size(25.dp)
+                    .clickable { viewModel.toggleUserInfoDialog() }
             )
-            Spacer(modifier = Modifier.width(0.5.dp))
-            Text(
-                text = "Logout",
-                color = Color.White,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
-            )
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.End
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.logouticon),
+                    contentDescription = "Logout",
+                    tint = Color.White,
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clickable { onLogout() }
+                )
+                Spacer(modifier = Modifier.width(0.5.dp))
+                Text(
+                    text = "Logout",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.clickable { onLogout() }
+                )
+            }
         }
+
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.Center,
@@ -280,6 +302,86 @@ fun AblaufScreen(
                     }
                 }
             }
+
+            if (showUserInfoDialog) {
+                AlertDialog(
+                    onDismissRequest = { viewModel.toggleUserInfoDialog() },
+                    confirmButton = {}, // Kein eigener Buttonbereich
+                    text = {
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            tonalElevation = 8.dp,
+                            color = Color(0xFF5E7F94),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                // --- Textbereich (links ausgerichtet) ---
+                                Column(horizontalAlignment = Alignment.Start) {
+                                    Text(
+                                        text = "Angemeldeter Benutzer",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                        fontSize = 20.sp
+                                    )
+                                    Text(
+                                        text = viewModel.getUserName(),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontStyle = FontStyle.Italic,
+                                        color = Color.White,
+                                        modifier = Modifier.padding(top = 4.dp)
+                                    )
+
+                                    Spacer(modifier = Modifier.height(20.dp))
+
+                                    Text(
+                                        text = "Geräte-ID",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                        fontSize = 20.sp
+                                    )
+                                    Text(
+                                        text = viewModel.getDeviceId(),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = Color.White,
+                                        fontStyle = FontStyle.Italic,
+                                        modifier = Modifier.padding(top = 4.dp)
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                // --- "Schließen" unten rechts ---
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.End
+                                ) {
+                                    Text(
+                                        text = "Schließen",
+                                        color = Color.White,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        modifier = Modifier
+                                            .clickable { viewModel.toggleUserInfoDialog() }
+                                            .padding(top = 8.dp)
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    containerColor = Color.Transparent
+                )
+            }
+
         }
     }
 }
