@@ -343,7 +343,7 @@ fun AblaufScreen(
                                     Spacer(modifier = Modifier.height(20.dp))
 
                                     Text(
-                                        text = "Geräte-ID",
+                                        text = "Gerät-ID",
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = Color.White,

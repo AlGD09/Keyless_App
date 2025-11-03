@@ -21,7 +21,7 @@ class CloudClient @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
 
-    private val baseUrl = "http://192.168.178.41:8080/"   // ← IP hier einsetzen
+    private val baseUrl = "http://10.42.0.1:8080/"   // ← IP hier einsetzen
 
     private val api: CloudApi
 
