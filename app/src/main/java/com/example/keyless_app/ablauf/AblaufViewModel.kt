@@ -16,6 +16,7 @@ import android.util.Log
 import android.provider.Settings
 import com.example.keyless_app.data.Machine
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Job
 
 @HiltViewModel
 class AblaufViewModel @Inject constructor(
@@ -23,7 +24,7 @@ class AblaufViewModel @Inject constructor(
     private val cloudClient: CloudClient,
     private val bleManager: BLEManager
 ) : ViewModel() {
-
+    private var currentJob: Job? = null
     private val _status = MutableStateFlow<Status>(Status.Idle)
     val status = _status.asStateFlow()
 
@@ -45,7 +46,11 @@ class AblaufViewModel @Inject constructor(
     }
 
     fun startProcess() {
-        viewModelScope.launch {
+        // Falls noch ein alter Prozess läuft, abbrechen:
+        currentJob?.cancel()
+
+        //Coroutine starten
+        currentJob = viewModelScope.launch {
             _status.value = Status.CloudConnecting
             try {
                 val token = cloudClient.fetchToken() ?: throw Exception("Cloud-Fehler")
@@ -58,6 +63,8 @@ class AblaufViewModel @Inject constructor(
                 _status.value = Status.CloudSuccess
                 bleManager.setToken(token)
                 _status.value = Status.BLEStarting
+                bleManager.stopGattServer()      // <- alter GATT-Server beenden
+                bleManager.stopAdvertising()     // <- altes Advertising stoppen
                 bleManager.startGattServer()
                 _status.value = Status.BLEServer
                 _status.value = Status.BLEAdvertise
@@ -75,7 +82,6 @@ class AblaufViewModel @Inject constructor(
                     Log.e("AblaufViewModel", "Allgemeiner Fehler: ${e.message}")
                 }
             }
-
         }
     }
 
