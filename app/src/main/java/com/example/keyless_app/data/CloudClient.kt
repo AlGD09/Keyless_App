@@ -84,6 +84,7 @@ class CloudClient @Inject constructor(
                 val rcus = response.body() ?: emptyList()
                 val machines = rcus.map { rcu ->
                     Machine(
+                        rcuId = rcu.rcuId,
                         name = rcu.name,
                         location = rcu.location.ifBlank { "unbekannter Ort" }
                     )

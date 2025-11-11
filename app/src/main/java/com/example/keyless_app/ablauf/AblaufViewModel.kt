@@ -34,6 +34,10 @@ class AblaufViewModel @Inject constructor(
     private val _showUserInfoDialog = MutableStateFlow(false)
     val showUserInfoDialog = _showUserInfoDialog.asStateFlow()
 
+    // Maschinenauswahl
+    private val _pendingMachines = MutableStateFlow<List<String>>(emptyList())
+    val pendingMachines = _pendingMachines.asStateFlow()
+
     init {
         bleManager.onAuthenticated = {
             viewModelScope.launch {
@@ -43,6 +47,21 @@ class AblaufViewModel @Inject constructor(
 
             }
         }
+
+        bleManager.onChallengeCollectionFinished = { collectedIds ->
+            viewModelScope.launch {
+                if (collectedIds.isNotEmpty()) {
+                    Log.i("AblaufViewModel", "Challenges empfangen von ${collectedIds.size} Maschinen: $collectedIds")
+                    _pendingMachines.value = collectedIds
+                    _status.value = Status.Auswahl
+                } else {
+                    Log.i("AblaufViewModel", "Keine Challenges empfangen.")
+                }
+            }
+        }
+
+
+
     }
 
     fun startProcess() {
@@ -60,6 +79,11 @@ class AblaufViewModel @Inject constructor(
                 _status.value = Status.LoadingMachines
                 val assignedMachines = cloudClient.fetchAssignedMachines()
                 _machines.value = assignedMachines
+                if (assignedMachines.size > 1) {
+                    bleManager.multiMachineMode = true
+                } else {
+                    bleManager.multiMachineMode = false
+                }
                 _status.value = Status.CloudSuccess
                 bleManager.setToken(token)
                 _status.value = Status.BLEStarting
@@ -98,6 +122,25 @@ class AblaufViewModel @Inject constructor(
         return Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
     }
 
+    fun handleMachineSelection(rcuId: String) {
+        viewModelScope.launch {
+            try {
+                Log.i("AblaufViewModel", "Benutzer hat $rcuId gewählt.")
+                _status.value = Status.BLEProcessing
+
+                // BLEManager übergeben, welche Maschine verarbeitet werden soll
+                bleManager.processSelectedMachine(rcuId)
+
+                // Jetzt macht BLEManager alles Weitere selbst.
+                // Das ViewModel wartet darauf, dass BLEManager.onAuthenticated aufgerufen wird.
+
+            } catch (e: Exception) {
+                Log.e("AblaufViewModel", "Fehler bei handleMachineSelection: ${e.message}")
+                _status.value = Status.Error
+            }
+        }
+    }
+
 }
 
 sealed class Status(val label: String) {
@@ -108,6 +151,8 @@ sealed class Status(val label: String) {
     object BLEStarting : Status("BLE: Läuft...")
     object BLEServer : Status("GATT Server gestartet")
     object BLEAdvertise : Status("Advertising gestartet für 45s")
+    object Auswahl : Status("Maschine auswählen")
+    object BLEProcessing: Status("Ausgewählte Maschine wird entsperrt...")
     object BLEStopped : Status("BLE gestoppt.")
     object Authentifiziert : Status("Authentifizierung erfolgreich")
     object ErrorToken : Status ("Gerät oder User nicht authentifiziert")

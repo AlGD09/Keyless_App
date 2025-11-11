@@ -48,6 +48,7 @@ fun AblaufScreen(
     val status by viewModel.status.collectAsState()
     val machines by viewModel.machines.collectAsState()
     val showUserInfoDialog by viewModel.showUserInfoDialog.collectAsState()
+    val pendingMachines by viewModel.pendingMachines.collectAsState()
 
     // --- Animierter Farbverlauf-Hintergrund ---
     val infiniteTransition = rememberInfiniteTransition()
@@ -301,6 +302,32 @@ fun AblaufScreen(
                         }
                     }
                 }
+            }
+
+            // --- Auswahl-Dialog für mehrere Maschinen ---
+            if (status == Status.Auswahl && pendingMachines.isNotEmpty()) {
+                AlertDialog(
+                    onDismissRequest = { /* bewusst offen lassen */ },
+                    confirmButton = {},
+                    title = { Text("Welche Maschine soll entsperrt werden?") },
+                    text = {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            pendingMachines.forEach { rcuId ->
+                                val machine = machines.firstOrNull { it.rcuId == rcuId }
+                                val displayName = machine?.name ?: rcuId
+
+                                Button(
+                                    onClick = { viewModel.handleMachineSelection(rcuId) },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp)
+                                ) {
+                                    Text(text = displayName)
+                                }
+                            }
+                        }
+                    }
+                )
             }
 
             if (showUserInfoDialog) {

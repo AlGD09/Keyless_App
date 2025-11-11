@@ -14,6 +14,9 @@ import android.content.Context
 import android.os.ParcelUuid
 import android.util.Log
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import java.util.UUID
 import android.provider.Settings
@@ -33,6 +36,17 @@ class BLEManager @Inject constructor(
     private var authToken : String? = null
 
     var onAuthenticated: (() -> Unit)? = null
+
+    //Multimapping Maschinenauswahl
+    var multiMachineMode: Boolean = false
+    private val pendingChallenges = mutableMapOf<String, ByteArray>()
+    var onChallengeReceived: ((String) -> Unit)? = null
+    var onChallengeCollectionFinished: ((List<String>) -> Unit)? = null
+    private var collectingChallenges = false
+
+    //Nach Maschinen Auswahl nur Challenges von dieser Maschine weiter behandeln
+    private var selectedRcuId: String? = null
+
 
     /**
      * Startet den BLE-Authentifizierungsprozess.
@@ -107,6 +121,11 @@ class BLEManager @Inject constructor(
     fun stopAdvertising() {
         advertiser?.stopAdvertising(advertiseCallback)
         Log.i("BLEManager", "BLE-Advertising gestoppt.")
+        // Zustand zurücksetzen, um neuen Authentifizierungszyklus vorzubereiten
+        selectedRcuId = null
+        pendingChallenges.clear()
+        collectingChallenges = false
+        Log.i("BLEManager", "Zustand zurückgesetzt (selectedRcuId=null, pendingChallenges gelöscht).")
     }
 
     companion object {
@@ -167,15 +186,64 @@ class BLEManager @Inject constructor(
             value: ByteArray
         ) {
             if (characteristic.uuid == CHAR_CHALLENGE) {
-                val challenge = value
-                Log.i("BLEManager", "Challenge empfangen: ${challenge.joinToString("") { "%02x".format(it) }}")
+                try {
+                    // val challenge = value
+                    val challenge = value.copyOfRange(0, 16)
+                    val rcuId = value.copyOfRange(16, value.size).toString(Charsets.UTF_8)
+                    Log.i("BLEManager", "Challenge empfangen von RCU: $rcuId")
+                    Log.i(
+                        "BLEManager",
+                        "Challenge empfangen: ${challenge.joinToString("") { "%02x".format(it) }}"
+                    )
 
-                // Beispielhafte Berechnung der Antwort
-                responseValue = processChallenge(challenge)
-                Log.i("BLEManager", "Response (HMAC) = ${responseValue!!.joinToString("") { "%02x".format(it) }}")
+                    if (multiMachineMode) {
+                        // Wenn eine Maschine ausgewählt wurde, nur noch deren Challenges akzeptieren
+                        if (selectedRcuId != null && rcuId != selectedRcuId) {
+                            Log.i("BLEManager", "Challenge von $rcuId ignoriert (aktive Maschine: $selectedRcuId).")
+                            if (responseNeeded) {
+                                gattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null)
+                            }
+                            return
+                        }
 
-                if (responseNeeded) {
-                    gattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null)
+                        pendingChallenges[rcuId] = challenge //Pending Challenges beinhaltet ID -> Challenge
+                        onChallengeReceived?.invoke(rcuId)
+
+                        // Starte Sammelmodus, falls nicht schon aktiv
+                        if (!collectingChallenges) {
+                            collectingChallenges = true
+                            Log.i("BLEManager", "Challenge-Sammelphase gestartet (5s).")
+
+                            // Nach 5 Sekunden Sammelphase beenden
+                            CoroutineScope(Dispatchers.Default).launch {
+                                delay(5000)
+                                collectingChallenges = false
+                                val collectedIds = pendingChallenges.keys.toList()
+                                Log.i("BLEManager", "Sammelphase beendet. ${collectedIds.size} Challenges gesammelt.")
+                                onChallengeCollectionFinished?.invoke(collectedIds)  //onChallengeCollectionFinished hat alle empfangenen Ids ohne Challenges
+                            }
+                        }
+                    } else {
+                        // Einzelmaschinenmodus: direkt antworten
+                        responseValue = processChallenge(challenge)
+                        Log.i(
+                            "BLEManager",
+                            "Response (HMAC): ${responseValue!!.joinToString("") { "%02x".format(it) }}"
+                        )
+                    }
+
+                    if (responseNeeded) {
+                        gattServer?.sendResponse(
+                            device,
+                            requestId,
+                            BluetoothGatt.GATT_SUCCESS,
+                            0,
+                            null
+                        )
+                    }
+                } catch (e: Exception) {
+                    Log.e("BLEManager", "Fehler beim Verarbeiten der Challenge: ${e.message}")
+                    gattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_FAILURE, 0, null)
                 }
             }
         }
@@ -209,6 +277,21 @@ class BLEManager @Inject constructor(
         val keySpec = SecretKeySpec(keyBytes, "HmacSHA256")
         mac.init(keySpec)
         return mac.doFinal(challengeBytes)  // 32-Byte Digest wie in Python
+    }
+
+    fun processSelectedMachine(rcuId: String) {
+        selectedRcuId = rcuId
+        val challenge = pendingChallenges[rcuId]
+        if (challenge != null) {
+            responseValue = processChallenge(challenge)
+            Log.i("BLEManager", "Response für $rcuId erzeugt.")
+
+            // Jetzt wird die Response bereitgestellt –
+            // die RCU liest sie wie bisher über CHAR_RESPONSE.
+            // Wenn das geschieht, wird onAuthenticated() ausgelöst.
+        } else {
+            Log.e("BLEManager", "Keine Challenge für $rcuId gefunden.")
+        }
     }
 
 }
