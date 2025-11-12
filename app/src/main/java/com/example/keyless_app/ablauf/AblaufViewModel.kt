@@ -38,13 +38,16 @@ class AblaufViewModel @Inject constructor(
     private val _pendingMachines = MutableStateFlow<List<String>>(emptyList())
     val pendingMachines = _pendingMachines.asStateFlow()
 
+    // Authentifizierte Maschine
+    private val _authenticatedMachine = MutableStateFlow<String?>(null)
+    val authenticatedMachine = _authenticatedMachine.asStateFlow()
+
     init {
-        bleManager.onAuthenticated = {
+        bleManager.onAuthenticated = { rcuId ->
             viewModelScope.launch {
+                _authenticatedMachine.value = rcuId
                 _status.value = Status.Authentifiziert
-
                 kotlinx.coroutines.delay(5000)
-
             }
         }
 
@@ -94,6 +97,7 @@ class AblaufViewModel @Inject constructor(
                 _status.value = Status.BLEAdvertise
                 bleManager.startAdvertisingForDuration(45_000)
                 _status.value = Status.BLEStopped
+                _authenticatedMachine.value = null // Variable zurücksetzen wenn Prozess abgeschlossen ist
                 _machines.value = emptyList()
                 bleManager.stopGattServer()
                 _status.value = Status.Idle

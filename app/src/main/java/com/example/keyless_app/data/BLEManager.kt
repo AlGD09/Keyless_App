@@ -39,7 +39,7 @@ class BLEManager @Inject constructor(
     private val rcuDeviceById = mutableMapOf<String, BluetoothDevice>()
 
     // Events
-    var onAuthenticated: (() -> Unit)? = null
+    var onAuthenticated: ((String) -> Unit)? = null
     var onChallengeReceived: ((String) -> Unit)? = null
     var onChallengeCollectionFinished: ((List<String>) -> Unit)? = null
 
@@ -274,7 +274,7 @@ class BLEManager @Inject constructor(
 
             if (rcuId != null && rcuId == selectedRcuId && resp != null) {
                 gattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, resp)
-                onAuthenticated?.invoke()
+                onAuthenticated?.invoke(rcuId)
             } else {
                 gattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_FAILURE, 0, null)
                 Log.i("BLEManager", "Read verweigert: selected=$selectedRcuId, deviceRcu=$rcuId")
@@ -321,13 +321,13 @@ class BLEManager @Inject constructor(
         try {
             if (android.os.Build.VERSION.SDK_INT >= 33) {
                 gattServer?.notifyCharacteristicChanged(device, char, false, resp)
-                onAuthenticated?.invoke()
+                onAuthenticated?.invoke(rcuId)
             } else {
                 @Suppress("DEPRECATION")
                 char.value = resp
                 @Suppress("DEPRECATION")
                 gattServer?.notifyCharacteristicChanged(device, char, false)
-                onAuthenticated?.invoke()
+                onAuthenticated?.invoke(rcuId)
             }
             Log.i("BLEManager", "Response an RCU ${device.address} per Notification gesendet.")
         } catch (e: SecurityException) {

@@ -49,6 +49,8 @@ fun AblaufScreen(
     val machines by viewModel.machines.collectAsState()
     val showUserInfoDialog by viewModel.showUserInfoDialog.collectAsState()
     val pendingMachines by viewModel.pendingMachines.collectAsState()
+    val authenticatedMachine by viewModel.authenticatedMachine.collectAsState()
+
 
     // --- Animierter Farbverlauf-Hintergrund ---
     val infiniteTransition = rememberInfiniteTransition()
@@ -277,7 +279,7 @@ fun AblaufScreen(
                     Surface(
                         shape = MaterialTheme.shapes.large,
                         tonalElevation = 8.dp,
-                        color = MaterialTheme.colorScheme.surface,
+                        color = Color.White,
                         modifier = Modifier
                             .fillMaxWidth(0.85f)
                             .padding(16.dp)
@@ -295,10 +297,20 @@ fun AblaufScreen(
                                 modifier = Modifier.size(80.dp)
                             )
                             Spacer(Modifier.height(16.dp))
+
                             Text(
                                 text = "Authentifiziert",
                                 style = MaterialTheme.typography.headlineSmall
                             )
+                           Spacer(Modifier.height(16.dp))
+                            authenticatedMachine?.let { id ->
+                                val name = machines.firstOrNull { it.rcuId == id }?.name ?: id
+                                Text(
+                                    text = "Maschine: $name",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }
