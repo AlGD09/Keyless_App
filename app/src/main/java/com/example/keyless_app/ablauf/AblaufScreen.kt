@@ -13,6 +13,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -319,26 +322,91 @@ fun AblaufScreen(
             // --- Auswahl-Dialog für mehrere Maschinen ---
             if (status == Status.Auswahl && pendingMachines.isNotEmpty()) {
                 AlertDialog(
-                    onDismissRequest = { /* bewusst offen lassen */ },
+                    onDismissRequest = { /* bleibt bewusst offen */ },
                     confirmButton = {},
-                    title = { Text("Welche Maschine soll entsperrt werden?") },
                     text = {
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            pendingMachines.forEach { rcuId ->
-                                val machine = machines.firstOrNull { it.rcuId == rcuId }
-                                val displayName = machine?.name ?: rcuId
-
-                                Button(
-                                    onClick = { viewModel.handleMachineSelection(rcuId) },
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            tonalElevation = 8.dp,
+                            color = Color.White,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ){
+                                Text(
+                                    text = "Welche Maschine soll entsperrt werden?",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontSize = 20.sp,
+                                    color = Color(0xFF495E6E),
+                                    modifier = Modifier
+                                        .padding(top = 16.dp, start = 20.dp)
+                                        .align(Alignment.CenterHorizontally),
+                                )
+                                LazyVerticalGrid(
+                                    columns = GridCells.Fixed(2),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(vertical = 4.dp)
+                                        .padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                    userScrollEnabled = false // optional, wenn wenige Maschinen
                                 ) {
-                                    Text(text = displayName)
+                                    items(pendingMachines, key = { it }) { rcuId ->
+                                        val machine = machines.firstOrNull { it.rcuId == rcuId }
+                                        val displayName = machine?.name ?: rcuId
+
+                                        val imageRes = when {
+                                            displayName.contains("Bagger", ignoreCase = true) -> R.drawable.baggersymbol
+                                            displayName.contains("Kuka", ignoreCase = true) -> R.drawable.kukasymbol
+                                            displayName.contains("Walze", ignoreCase = true) -> R.drawable.walzesymbol
+                                            else -> R.drawable.maschinesymbol
+                                        }
+
+                                        Button(
+                                            onClick = { viewModel.handleMachineSelection(rcuId) },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = Color(0xFF002B49),
+                                                contentColor = Color.White // Textfarbe
+                                            ),
+                                            modifier = Modifier
+                                                .aspectRatio(1f) // quadratische Form
+                                                .fillMaxWidth(),
+                                            shape = RoundedCornerShape(16.dp),
+                                            contentPadding = PaddingValues(8.dp)
+                                        ) {
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.Center
+                                            ) {
+                                                Image(
+                                                    painter = painterResource(id = imageRes),
+                                                    contentDescription = "Maschinen-Symbol",
+                                                    modifier = Modifier
+                                                        .size(56.dp)
+                                                        .padding(bottom = 6.dp)
+                                                )
+                                                Text(
+                                                    text = displayName,
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    color = MaterialTheme.colorScheme.onPrimary,
+                                                    maxLines = 1
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
+
                             }
+
                         }
-                    }
+                    },
+                    containerColor = Color.Transparent
                 )
             }
 
