@@ -302,7 +302,7 @@ fun AblaufScreen(
                             Spacer(Modifier.height(16.dp))
 
                             Text(
-                                text = "Authentifiziert",
+                                text = "Freigegeben",
                                 style = MaterialTheme.typography.headlineSmall
                             )
                            Spacer(Modifier.height(16.dp))
