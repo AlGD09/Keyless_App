@@ -50,7 +50,7 @@ class BLEManager @Inject constructor(
         private val CCC_DESCRIPTOR_UUID: UUID =
             UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
-        private const val CHALLENGE_COLLECTION_MS = 3500L
+        private const val CHALLENGE_COLLECTION_MS = 11000L
     }
 
     // --- BLE SETUP ---

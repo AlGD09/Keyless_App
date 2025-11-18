@@ -16,6 +16,7 @@ data class RcuResponse(
     val name: String,
     val location: String,
     val registeredAt: String,
+    val status: String,
     val assignedSmartphone: AssignedSmartphone?
 )
 

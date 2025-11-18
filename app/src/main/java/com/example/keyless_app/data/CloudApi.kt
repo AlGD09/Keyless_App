@@ -14,4 +14,10 @@ interface CloudApi {
     suspend fun requestRcus(
         @Path("deviceId") deviceId: String
     ): Response<List<RcuResponse>>
+
+    @POST("api/rcu/lock/{rcuId}")
+    suspend fun lockRcu(
+        @Path("rcuId") rcuId: String
+    ): Response<Unit>
+
 }

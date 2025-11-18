@@ -50,6 +50,7 @@ fun AblaufScreen(
     // ViewModel-Status als State beobachten
     val status by viewModel.status.collectAsState()
     val machines by viewModel.machines.collectAsState()
+    val unlockedMachines by viewModel.unlockedMachines.collectAsState()
     val showUserInfoDialog by viewModel.showUserInfoDialog.collectAsState()
     val pendingMachines by viewModel.pendingMachines.collectAsState()
     val authenticatedMachine by viewModel.authenticatedMachine.collectAsState()
@@ -235,11 +236,11 @@ fun AblaufScreen(
             val buttonColor: Color
 
             when (status) {
-                Status.Error, Status.ErrorToken -> {
+                Status.Error, Status.ErrorToken, Status.LockError -> {
                     buttonText = "Retry"
                     buttonColor = Color(0xFFB71C1C) // Rot
                 }
-                Status.Idle -> {
+                Status.Idle, Status.Locked -> {
                     buttonText = "Start"
                     buttonColor = Color(0xFF2E7D32) // Grün
                 }
@@ -269,6 +270,76 @@ fun AblaufScreen(
                     }
                 } else {
                     Text(text = buttonText, fontSize = 18.sp)
+                }
+            }
+
+            if (unlockedMachines.isNotEmpty() && machines.isEmpty()) {
+                Spacer(Modifier.height(10.dp))
+                Text("Aktive Maschinen:", style = MaterialTheme.typography.titleMedium, color = Color.White, modifier = Modifier.align(Alignment.Start))
+                Spacer(Modifier
+                    .height(8.dp)
+                )
+
+                unlockedMachines.forEachIndexed { index, unlocked ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFF002B49), // Dunkelblau
+                            contentColor = Color.White // Textfarbe in der Card
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            // Bild je nach Maschinentyp auswählen
+                            val imageRes = when {
+                                unlocked.name.contains("Bagger", ignoreCase = true) -> R.drawable.baggersymbol
+                                unlocked.name.contains("Kuka", ignoreCase = true) -> R.drawable.kukasymbol
+                                unlocked.name.contains("Walze", ignoreCase = true) -> R.drawable.walzesymbol
+                                else -> R.drawable.maschinesymbol
+                            }
+                            Image(
+                                painter = painterResource(id = imageRes),
+                                contentDescription = "Maschinen-Symbol",
+                                modifier = Modifier
+                                    .size(48.dp)
+                                //.padding(start = 2.dp)
+                            )
+                            Column {
+                                Text(
+                                    buildAnnotatedString {
+                                        withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                                            append("${unlocked.name} ")
+                                        }
+                                    }
+                                )
+                                Text("Standort: ${unlocked.location}")
+                            }
+
+
+                            Button(
+                                onClick = { viewModel.lockMachine(unlocked.rcuId) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF002B49),
+                                    contentColor = Color.White // Textfarbe
+                                )
+                            ) {
+                                Text(
+                                    text = "Stop",
+                                    fontSize = 18.sp,
+                                    color = Color(0xFFDA0000)
+                                )
+
+                            }
+
+                        }
+                    }
                 }
             }
 

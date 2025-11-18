@@ -15,8 +15,12 @@ import javax.inject.Inject
 import android.util.Log
 import android.provider.Settings
 import com.example.keyless_app.data.Machine
+import com.example.keyless_app.data.UnlockedMachine
+import com.example.keyless_app.data.unlockedMachinesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.firstOrNull
+import kotlin.collections.firstOrNull
 
 @HiltViewModel
 class AblaufViewModel @Inject constructor(
@@ -42,12 +46,39 @@ class AblaufViewModel @Inject constructor(
     private val _authenticatedMachine = MutableStateFlow<String?>(null)
     val authenticatedMachine = _authenticatedMachine.asStateFlow()
 
+    // Entriegelte Maschinen
+    private val _unlockedMachines = MutableStateFlow<List<UnlockedMachine>>(emptyList())
+    val unlockedMachines = _unlockedMachines.asStateFlow()
+
+
     init {
         bleManager.onAuthenticated = { rcuId ->
             viewModelScope.launch {
                 _authenticatedMachine.value = rcuId
+
+                // Maschine ein einziges Mal suchen
+                val machine = _machines.value.firstOrNull { it.rcuId == rcuId }
+
+                val name = machine?.name ?: "Unbekannte Maschine"
+                val location = machine?.location ?: "Unbekannter Standort"
+
+                // RCU in Liste der entriegelten Maschinen eintragen
+                val current = _unlockedMachines.value.toMutableList()
+                if (current.none { it.rcuId == rcuId }) {
+                    current.add(
+                        UnlockedMachine(
+                            rcuId = rcuId,
+                            name = name,
+                            location = location
+                        )
+                    )
+                    _unlockedMachines.value = current
+                    context.unlockedMachinesDataStore.updateData { state ->
+                        state.copy(machines = current)
+                    }
+                }
                 _status.value = Status.Authentifiziert
-                kotlinx.coroutines.delay(5000)
+                kotlinx.coroutines.delay(2000)
             }
         }
 
@@ -63,7 +94,12 @@ class AblaufViewModel @Inject constructor(
             }
         }
 
-
+        // Beim Start alle noch offene Maschinen anzeigen
+        viewModelScope.launch {
+            context.unlockedMachinesDataStore.data.collect { state ->
+                _unlockedMachines.value = state.machines
+            }
+        }
 
     }
 
@@ -145,6 +181,32 @@ class AblaufViewModel @Inject constructor(
         }
     }
 
+    fun lockMachine(rcuId: String) {
+        viewModelScope.launch {
+            _status.value = Status.Lock
+
+            val success = cloudClient.lockMachine(rcuId)
+
+            if (success) {
+                // Aus der Liste entfernen
+                val list = _unlockedMachines.value.toMutableList()
+                list.removeAll { it.rcuId == rcuId }
+                _unlockedMachines.value = list
+                context.unlockedMachinesDataStore.updateData { state ->
+                    state.copy(machines = list)
+                }
+
+                _status.value = Status.Locked
+                kotlinx.coroutines.delay(2000)
+                _status.value = Status.Idle
+
+            } else {
+                // Optional: Fehlermeldung
+                _status.value = Status.LockError
+            }
+        }
+    }
+
 }
 
 sealed class Status(val label: String) {
@@ -159,8 +221,11 @@ sealed class Status(val label: String) {
     object BLEProcessing: Status("Ausgewählte Maschine wird entsperrt...")
     object BLEStopped : Status("BLE gestoppt.")
     object Authentifiziert : Status("Authentifizierung erfolgreich")
+    object Lock : Status("Maschine wird verriegelt")
+    object Locked : Status("Maschine erfolgreich verriegelt")
     object ErrorToken : Status ("Gerät oder User nicht authentifiziert")
     object Error : Status ("Cloud- oder BLE Fehler")
+    object LockError : Status ("Fehler beim Verriegeln der Maschine")
 }
 
 

@@ -50,7 +50,7 @@ class CloudClient @Inject constructor(
     suspend fun fetchToken(): String? {
         val prefs = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
         //val userName = "Admin"           // später dynamisch
-        //val deviceId = "bd45e75870af93c2"    // dein BLE-Device-ID
+        //val deviceId = "bd45e75870af93c2"    // BLE-Device-ID
         val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
         //val secretHash = "cc03e747a6afbbcbf8be7668acfebee5"   // Dummy-Wert
         val userName = prefs.getString("userName", "") ?: ""
@@ -103,4 +103,14 @@ class CloudClient @Inject constructor(
             emptyList()
         }
     }
+
+    suspend fun lockMachine(rcuId: String): Boolean {
+        return try {
+            val response = api.lockRcu(rcuId)
+            response.isSuccessful
+        } catch (e: Exception) {
+            false
+        }
+    }
+
 }
