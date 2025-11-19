@@ -18,9 +18,12 @@ import com.example.keyless_app.data.Machine
 import com.example.keyless_app.data.UnlockedMachine
 import com.example.keyless_app.data.unlockedMachinesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.firstOrNull
 import kotlin.collections.firstOrNull
+import kotlinx.coroutines.withTimeoutOrNull
+
 
 @HiltViewModel
 class AblaufViewModel @Inject constructor(
@@ -29,6 +32,8 @@ class AblaufViewModel @Inject constructor(
     private val bleManager: BLEManager
 ) : ViewModel() {
     private var currentJob: Job? = null
+    private var unlockSignal = CompletableDeferred<Unit>()
+
     private val _status = MutableStateFlow<Status>(Status.Idle)
     val status = _status.asStateFlow()
 
@@ -86,6 +91,12 @@ class AblaufViewModel @Inject constructor(
                 }
 
                 _status.value = Status.Entsperrt
+                kotlinx.coroutines.delay(4000)
+
+
+                if (!unlockSignal.isCompleted) {
+                    unlockSignal.complete(Unit)
+                }
 
 
             }
@@ -116,6 +127,7 @@ class AblaufViewModel @Inject constructor(
     fun startProcess() {
         // Falls noch ein alter Prozess läuft, abbrechen:
         currentJob?.cancel()
+        unlockSignal = CompletableDeferred()
 
         //Coroutine starten
         currentJob = viewModelScope.launch {
@@ -141,7 +153,14 @@ class AblaufViewModel @Inject constructor(
                 bleManager.startGattServer()
                 _status.value = Status.BLEServer
                 _status.value = Status.BLEAdvertise
-                bleManager.startAdvertisingForDuration(45_000)
+                // bleManager.startAdvertisingForDuration(45_000)
+                launch {
+                    bleManager.startAdvertisingForDuration(45_000)
+                }
+                // Adervtising Dauer unterbrechen falls Entsperrt kommt
+                withTimeoutOrNull(45_000) {
+                    unlockSignal.await()
+                }
                 _status.value = Status.BLEStopped
                 _authenticatedMachine.value = null // Variable zurücksetzen wenn Prozess abgeschlossen ist
                 _machines.value = emptyList()

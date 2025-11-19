@@ -19,7 +19,9 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -366,25 +368,33 @@ fun AblaufScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Search,
+                                imageVector = Icons.Default.CheckCircle,
                                 contentDescription = "Authentifiziert",
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(80.dp)
                             )
                             Spacer(Modifier.height(16.dp))
-
+                            val custom20 = MaterialTheme.typography.titleLarge.copy(
+                                fontSize = 20.sp
+                            )
+                            Text(
+                                text = "Maschine freigegeben",
+                                style = custom20
+                            )
+                            Spacer(Modifier.height(16.dp))
                             authenticatedMachine?.let { id ->
                                 val name = machines.firstOrNull { it.rcuId == id }?.name ?: id
                                 Text(
-                                    text = "Maschine freigegeben: $name",
-                                    style = MaterialTheme.typography.headlineSmall
+                                    text = "$name ",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
 
                            Spacer(Modifier.height(16.dp))
                             Text(
                                 text = "Gehen Sie näher an die Maschine, um sie zu entriegeln",
-                                style = MaterialTheme.typography.bodyLarge,
+                                style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -410,7 +420,7 @@ fun AblaufScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Icon(
-                                imageVector = Icons.Default.CheckCircle,
+                                imageVector = Icons.Default.LockOpen,
                                 contentDescription = "Authentifiziert",
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(80.dp)
