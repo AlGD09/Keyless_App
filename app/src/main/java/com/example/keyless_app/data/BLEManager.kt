@@ -22,12 +22,16 @@ class BLEManager @Inject constructor(
     private var advertiser: BluetoothLeAdvertiser? = null
     private var advertiseCallback: AdvertiseCallback? = null
     private var gattServer: BluetoothGattServer? = null
+    private var gattServerStarted = false
+
     private var authToken: String? = null
 
     // States
     private var responseValue: ByteArray? = null
     private var selectedRcuId: String? = null
     private var collectingChallenges = false
+
+
 
     // Challenge-Handling
     var multiMachineMode: Boolean = false
@@ -40,6 +44,8 @@ class BLEManager @Inject constructor(
 
     // Events
     var onAuthenticated: ((String) -> Unit)? = null
+
+    var onUnlocked: ((String) -> Unit)? = null
     var onChallengeReceived: ((String) -> Unit)? = null
     var onChallengeCollectionFinished: ((List<String>) -> Unit)? = null
 
@@ -57,9 +63,15 @@ class BLEManager @Inject constructor(
 
     @SuppressLint("MissingPermission")
     fun startGattServer() {
+        if (gattServerStarted) {
+            Log.i("BLEManager", "GATT-Server läuft bereits – Überspringe Neustart.")
+            return
+        }
+
         val bluetoothManager =
             context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         gattServer = bluetoothManager.openGattServer(context, gattServerCallback)
+        gattServerStarted = true
 
         val service = BluetoothGattService(SERVICE_UUID, BluetoothGattService.SERVICE_TYPE_PRIMARY)
 
@@ -71,14 +83,17 @@ class BLEManager @Inject constructor(
 
         val responseCharacteristic = BluetoothGattCharacteristic(
             CHAR_RESPONSE,
-            BluetoothGattCharacteristic.PROPERTY_READ or BluetoothGattCharacteristic.PROPERTY_NOTIFY,
+            BluetoothGattCharacteristic.PROPERTY_READ or BluetoothGattCharacteristic.PROPERTY_NOTIFY,  // Permissions for Notifications
             BluetoothGattCharacteristic.PERMISSION_READ
         )
 
         val cccDescriptor = BluetoothGattDescriptor(
             CCC_DESCRIPTOR_UUID,
-            BluetoothGattDescriptor.PERMISSION_READ or BluetoothGattDescriptor.PERMISSION_WRITE
+            BluetoothGattDescriptor.PERMISSION_READ or BluetoothGattDescriptor.PERMISSION_WRITE  // Notifications sowohl zum Schreiben als auch zum Lesen
         )
+
+        // Characteristic Response Descriptor zur Notifications-Aktivierung hinzufügen
+        // Client darf die beliebig ein- und ausschalten
         responseCharacteristic.addDescriptor(cccDescriptor)
 
         service.addCharacteristic(challengeCharacteristic)
@@ -92,6 +107,7 @@ class BLEManager @Inject constructor(
     fun stopGattServer() {
         gattServer?.close()
         gattServer = null
+        gattServerStarted = false
         Log.i("BLEManager", "GATT-Server gestoppt.")
     }
 
@@ -137,6 +153,8 @@ class BLEManager @Inject constructor(
         delay(durationMs)
         stopAdvertising()
     }
+
+
 
     @SuppressLint("MissingPermission")
     fun stopAdvertising() {
@@ -194,6 +212,24 @@ class BLEManager @Inject constructor(
             if (characteristic.uuid != CHAR_CHALLENGE) return
 
             try {
+                // Entsperrt Nachricht behandeln
+                val text = value.toString(Charsets.UTF_8)
+                if (text == "Entsperrt") {
+                    Log.i("BLEManager", "Unlock-Event von RCU empfangen.")
+                    val rcuId = selectedRcuId ?: "unknown"
+                    onUnlocked?.invoke(rcuId)
+
+                    if (responseNeeded)
+                        gattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null)
+
+                    // Advertising noch 2 Sekunden aktiv lassen, dann stoppen
+                    CoroutineScope(Dispatchers.Default).launch {
+                        delay(2000)
+                        stopAdvertising()  // Ggf. 2 Abrufe von stop Advertising sicher (nach 45s delay)
+                    }
+                    return
+                }
+
                 val challenge = value.copyOfRange(0, 16)
                 val rcuId = value.copyOfRange(16, value.size).toString(Charsets.UTF_8)
                 lastRcuIdByDevice[device] = rcuId

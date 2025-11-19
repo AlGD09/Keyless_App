@@ -56,6 +56,13 @@ class AblaufViewModel @Inject constructor(
             viewModelScope.launch {
                 _authenticatedMachine.value = rcuId
 
+                _status.value = Status.Authentifiziert
+            }
+        }
+
+        bleManager.onUnlocked = { rcuId ->
+            viewModelScope.launch {
+
                 // Maschine ein einziges Mal suchen
                 val machine = _machines.value.firstOrNull { it.rcuId == rcuId }
 
@@ -77,9 +84,12 @@ class AblaufViewModel @Inject constructor(
                         state.copy(machines = current)
                     }
                 }
-                _status.value = Status.Authentifiziert
-                kotlinx.coroutines.delay(2000)
+
+                _status.value = Status.Entsperrt
+
+
             }
+
         }
 
         bleManager.onChallengeCollectionFinished = { collectedIds ->
@@ -126,7 +136,7 @@ class AblaufViewModel @Inject constructor(
                 _status.value = Status.CloudSuccess
                 bleManager.setToken(token)
                 _status.value = Status.BLEStarting
-                bleManager.stopGattServer()      // <- alter GATT-Server beenden
+                // bleManager.stopGattServer()      // <- alter GATT-Server beenden
                 bleManager.stopAdvertising()     // <- altes Advertising stoppen
                 bleManager.startGattServer()
                 _status.value = Status.BLEServer
@@ -221,6 +231,7 @@ sealed class Status(val label: String) {
     object BLEProcessing: Status("Ausgewählte Maschine wird entsperrt...")
     object BLEStopped : Status("BLE gestoppt.")
     object Authentifiziert : Status("Authentifizierung erfolgreich")
+    object Entsperrt : Status("Maschine erfolgreich entriegelt")
     object Lock : Status("Maschine wird verriegelt")
     object Locked : Status("Maschine erfolgreich verriegelt")
     object ErrorToken : Status ("Gerät oder User nicht authentifiziert")

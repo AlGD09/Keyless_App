@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -365,6 +366,50 @@ fun AblaufScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Authentifiziert",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(80.dp)
+                            )
+                            Spacer(Modifier.height(16.dp))
+
+                            authenticatedMachine?.let { id ->
+                                val name = machines.firstOrNull { it.rcuId == id }?.name ?: id
+                                Text(
+                                    text = "Maschine freigegeben: $name",
+                                    style = MaterialTheme.typography.headlineSmall
+                                )
+                            }
+
+                           Spacer(Modifier.height(16.dp))
+                            Text(
+                                text = "Gehen Sie näher an die Maschine, um sie zu entriegeln",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Entsperrungsdialog anzeigen
+            if (status == Status.Entsperrt) {
+                Dialog(onDismissRequest = { /* bleibt kurz sichtbar */ }) {
+                    Surface(
+                        shape = MaterialTheme.shapes.large,
+                        tonalElevation = 8.dp,
+                        color = Color.White,
+                        modifier = Modifier
+                            .fillMaxWidth(0.85f)
+                            .padding(16.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .padding(24.dp),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
                                 imageVector = Icons.Default.CheckCircle,
                                 contentDescription = "Authentifiziert",
                                 tint = MaterialTheme.colorScheme.primary,
@@ -373,10 +418,10 @@ fun AblaufScreen(
                             Spacer(Modifier.height(16.dp))
 
                             Text(
-                                text = "Freigegeben",
+                                text = "Entriegelt",
                                 style = MaterialTheme.typography.headlineSmall
                             )
-                           Spacer(Modifier.height(16.dp))
+                            Spacer(Modifier.height(16.dp))
                             authenticatedMachine?.let { id ->
                                 val name = machines.firstOrNull { it.rcuId == id }?.name ?: id
                                 Text(
