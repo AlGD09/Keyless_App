@@ -13,6 +13,15 @@ import kotlinx.coroutines.*
 import javax.inject.Inject
 import java.util.UUID
 
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanResult
+import android.bluetooth.le.ScanFilter
+import android.bluetooth.le.ScanSettings
+import android.bluetooth.BluetoothAdapter
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlin.coroutines.coroutineContext
+
 /**
  * BLEManager – verwaltet die Bluetooth-Kommunikation mit der RCU.
  */
@@ -21,6 +30,11 @@ class BLEManager @Inject constructor(
 ) {
     private var advertiser: BluetoothLeAdvertiser? = null
     private var advertiseCallback: AdvertiseCallback? = null
+    private var globalScanCallback: ScanCallback? = null
+    private var globalScanRunning = false
+    // Throttling fuer den globalen RSSI Scan
+    private var lastGlobalScanStartMs: Long = 0L
+    private val MIN_GLOBAL_SCAN_INTERVAL_MS = 12_000L  // 12 s Abstand
     private var gattServer: BluetoothGattServer? = null
     private var gattServerStarted = false
 
@@ -222,11 +236,7 @@ class BLEManager @Inject constructor(
                     if (responseNeeded)
                         gattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null)
 
-                    // Advertising noch 2 Sekunden aktiv lassen, dann stoppen
-                    CoroutineScope(Dispatchers.Default).launch {
-                        delay(2000)
-                        stopAdvertising()  // Ggf. 2 Abrufe von stop Advertising sicher (nach 45s delay)
-                    }
+                    stopAdvertising()
                     return
                 }
 
@@ -370,4 +380,162 @@ class BLEManager @Inject constructor(
             Log.e("BLEManager", "Fehlende Bluetooth-Berechtigung: ${e.message}")
         }
     }
+
+    private fun extractRcuId(result: ScanResult): String? {
+        val record = result.scanRecord ?: return null
+
+        // 1) Bevorzugt: Manufacturer ID 0xFFFF
+        val manuData = record.manufacturerSpecificData.get(0xFFFF)
+        if (manuData != null && manuData.isNotEmpty()) {
+            return try {
+                val id = manuData.toString(Charsets.UTF_8).trim()
+                Log.i("BLEManager", "MSD[0xFFFF] als String: '$id'")
+                if (id.isNotEmpty()) return id else null
+            } catch (e: Exception) {
+                Log.i("BLEManager", "Fehler beim Dekodieren von MSD[0xFFFF]: ${e.message}")
+                null
+            }
+        }
+
+        // 2) Fallback: irgendein Manufacturer-Eintrag als Text versuchen
+        val msd = record.manufacturerSpecificData
+        for (i in 0 until msd.size()) {
+            val key = msd.keyAt(i)
+            val bytes = msd.get(key)
+            if (bytes != null && bytes.isNotEmpty()) {
+                val asText = try {
+                    bytes.toString(Charsets.UTF_8).trim()
+                } catch (_: Exception) {
+                    ""
+                }
+
+                if (asText.isNotEmpty()) {
+                    Log.i(
+                        "BLEManager",
+                        "Fallback MSD key=0x${key.toString(16)} als Text: '$asText'"
+                    )
+                    return asText
+                } else {
+                    Log.i(
+                        "BLEManager",
+                        "Fallback MSD key=0x${key.toString(16)} bytes=${bytes.joinToString(" ") { "%02X".format(it) }}"
+                    )
+                }
+            }
+        }
+
+        // 3) Fallback: Device Name (sehr häufig so gesetzt wie deine RCU-ID)
+        Log.i(
+            "BLEManager",
+            "Keine RCU-ID aus Advertisement extrahiert fuer ${result.device.address}"
+        )
+        return null
+    }
+
+    @SuppressLint("MissingPermission")
+    fun startGlobalRssiScan(onResult: (String, Int) -> Unit) {
+        // Wenn schon ein Scan laeuft, nicht noch einmal starten
+        if (globalScanRunning) {
+            Log.i("BLEManager", "Globaler RSSI Scan laeuft bereits.")
+            return
+        }
+
+        val now = System.currentTimeMillis()
+        val diff = now - lastGlobalScanStartMs
+
+        // Harte Ratebegrenzung: nicht oefter als alle 35 s einen neuen Start erlauben
+        if (diff in 1 until MIN_GLOBAL_SCAN_INTERVAL_MS) {
+            Log.i(
+                "BLEManager",
+                "Scan Anforderung verworfen, zu haeufig (letzter Start vor ${diff} ms)."
+            )
+            return
+        }
+
+        val bluetoothManager =
+            context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        val adapter = bluetoothManager.adapter ?: run {
+            Log.i("BLEManager", "Kein Bluetooth Adapter gefunden.")
+            return
+        }
+        val scanner = adapter.bluetoothLeScanner ?: run {
+            Log.i("BLEManager", "Kein BluetoothLeScanner verfuegbar.")
+            return
+        }
+
+        lastGlobalScanStartMs = now
+
+        globalScanCallback = object : ScanCallback() {
+            override fun onScanResult(callbackType: Int, result: ScanResult) {
+                val addr = result.device.address
+                val name = result.device.name ?: result.scanRecord?.deviceName ?: "N/A"
+                val rssi = result.rssi
+                //Log.i("BLEManager", "SCAN → addr=$addr  name=$name  rssi=$rssi")
+
+                if (name.startsWith("Maschine_")) {
+                    // 2. Extraer el RCU ID después del guión bajo
+                    val rcuId = name.removePrefix("Maschine_")
+
+                    Log.i("BLEManager", "Maschine gefunden: rcuId=$rcuId  rssi=$rssi")
+
+                    // 3. Enviar al ViewModel
+                    onResult(rcuId, rssi)
+                }
+            }
+
+            override fun onScanFailed(errorCode: Int) {
+                // Nur fuer Logging, globalScanRunning zuruecksetzen
+                Log.i("BLEManager", "Globaler Scan fehlgeschlagen, Code=$errorCode")
+                globalScanRunning = false
+            }
+        }
+
+        val settings = ScanSettings.Builder()
+            .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+            .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
+            .build()
+
+
+        try {
+            scanner.startScan(null, settings, globalScanCallback!!)
+            globalScanRunning = true
+            Log.i("BLEManager", "Globaler RSSI Scan gestartet.")
+        } catch (e: Exception) {
+            Log.e("BLEManager", "Fehler beim Starten des Global Scans: ${e.message}")
+            globalScanCallback = null
+            globalScanRunning = false
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    fun stopGlobalRssiScan() {
+        if (!globalScanRunning) {
+            Log.i("BLEManager", "Globaler RSSI Scan war nicht aktiv, nichts zu stoppen.")
+            return
+        }
+
+        try {
+            val bluetoothManager =
+                context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+            val adapter = bluetoothManager.adapter ?: return
+            val scanner = adapter.bluetoothLeScanner ?: return
+
+            globalScanCallback?.let { cb ->
+                scanner.stopScan(cb)
+                Log.i("BLEManager", "Globaler RSSI Scan gestoppt.")
+            }
+        } catch (e: Exception) {
+            Log.e("BLEManager", "Fehler beim Stoppen des Global Scans: ${e.message}")
+        } finally {
+            globalScanCallback = null
+            globalScanRunning = false
+
+            // Kleine Pause, hilft bei Xiaomi/MIUI
+            try {
+                Thread.sleep(200)
+            } catch (_: InterruptedException) {
+            }
+        }
+    }
+
 }

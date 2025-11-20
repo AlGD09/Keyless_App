@@ -32,6 +32,7 @@ class AblaufViewModel @Inject constructor(
     private val bleManager: BLEManager
 ) : ViewModel() {
     private var currentJob: Job? = null
+    private var rssiMonitorJob: Job? = null  // Job zur RSSI Überwachung entsperrter Maschinen
     private var unlockSignal = CompletableDeferred<Unit>()
 
     private val _status = MutableStateFlow<Status>(Status.Idle)
@@ -88,15 +89,16 @@ class AblaufViewModel @Inject constructor(
                     context.unlockedMachinesDataStore.updateData { state ->
                         state.copy(machines = current)
                     }
+                    Log.i("AblaufViewModel", "Entsperrte Maschinen registriert")
                 }
-
                 _status.value = Status.Entsperrt
                 kotlinx.coroutines.delay(4000)
-
 
                 if (!unlockSignal.isCompleted) {
                     unlockSignal.complete(Unit)
                 }
+
+                startRssiMonitor()
 
 
             }
@@ -119,6 +121,11 @@ class AblaufViewModel @Inject constructor(
         viewModelScope.launch {
             context.unlockedMachinesDataStore.data.collect { state ->
                 _unlockedMachines.value = state.machines
+
+                // RSSI-Check auch nach App Kill wiederstarten
+                /*if (_unlockedMachines.value.isNotEmpty()){
+                    startRssiMonitor()
+                }*/
             }
         }
 
@@ -224,6 +231,11 @@ class AblaufViewModel @Inject constructor(
                 context.unlockedMachinesDataStore.updateData { state ->
                     state.copy(machines = list)
                 }
+                if (_unlockedMachines.value.isEmpty()){
+                    rssiMonitorJob?.cancel()
+                    rssiMonitorJob = null
+                    bleManager.stopGlobalRssiScan()
+                }
 
                 _status.value = Status.Locked
                 kotlinx.coroutines.delay(2000)
@@ -232,6 +244,36 @@ class AblaufViewModel @Inject constructor(
             } else {
                 // Optional: Fehlermeldung
                 _status.value = Status.LockError
+            }
+        }
+    }
+
+    private fun handleRssiUpdate(values: Map<String, Int>) {
+        values.forEach { (id, rssi) ->
+            Log.i("RSSI", "RCU $id hat RSSI = $rssi")
+
+            if (rssi < -65) {
+                lockMachine(id)
+                Log.i("RSSI", "RCU $id wird verriegelt")
+            }
+        }
+    }
+
+    fun startRssiMonitor() {
+        rssiMonitorJob?.cancel()
+
+        rssiMonitorJob = viewModelScope.launch {
+            val unlocked = _unlockedMachines.value.map { it.rcuId }
+
+            if (unlocked.isEmpty()) {
+                Log.i("AblaufViewModel", "Kein RSSI-Monitoring nötig.")
+                return@launch
+            }
+
+            bleManager.startGlobalRssiScan { id, rssi ->
+                if (unlocked.contains(id)) {
+                    handleRssiUpdate(mapOf(id to rssi))
+                }
             }
         }
     }
