@@ -17,7 +17,6 @@ interface CloudApi {
 
     @POST("api/rcu/lock/{rcuId}")
     suspend fun lockRcu(
-        @Path("rcuId") rcuId: String
-    ): Response<LockResponse>
+        @Body payload: LockRequest): Response<LockResponse>
 
 }

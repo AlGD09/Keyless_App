@@ -21,6 +21,12 @@ enum class LockResult {
     ERROR
 }
 
+data class LockRequest(
+    val rcuId: String,
+    val deviceName: String,
+    val deviceId: String
+)
+
 data class RcuResponse(
     val id: Int,
     val rcuId: String,

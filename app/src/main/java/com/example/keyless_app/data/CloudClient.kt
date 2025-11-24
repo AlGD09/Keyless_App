@@ -9,6 +9,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import android.provider.Settings
 import android.content.Context
+import android.os.Build
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -109,7 +110,9 @@ class CloudClient @Inject constructor(
 
     suspend fun lockMachine(rcuId: String): LockResult {
         return try {
-            val response = api.lockRcu(rcuId)
+            val deviceName = getDeviceName(context)
+            val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+            val response = api.lockRcu(LockRequest(rcuId, deviceName, deviceId))
             if (response.isSuccessful) {
                 when (response.body()?.status?.lowercase()) {
                     "accepted" -> LockResult.ACCEPTED
@@ -127,6 +130,18 @@ class CloudClient @Inject constructor(
             Log.e("CloudClient", "Verbindungsfehler beim Verriegeln: ${e.message}")
             LockResult.ERROR
         }
+    }
+
+    fun getDeviceName(context: Context): String {
+        // Versuche zuerst benutzerdefinierten Gerätenamen
+        val userName = Settings.Global.getString(
+            context.contentResolver,
+            "device_name"
+        )
+        if (!userName.isNullOrBlank()) return userName
+
+        // Fallback: Hersteller + Modell
+        return "${Build.MANUFACTURER} ${Build.MODEL}"
     }
 
 }
