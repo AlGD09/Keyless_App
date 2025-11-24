@@ -17,6 +17,7 @@ data class LockResponse(
 
 enum class LockResult {
     ACCEPTED,
+    DEPRECATED,
     TIMEOUT,
     ERROR
 }

@@ -260,6 +260,23 @@ class AblaufViewModel @Inject constructor(
                     _status.value = Status.Idle
                 }
 
+                LockResult.DEPRECATED -> {
+                    _status.value = Status.LockDeprecated
+                    val list = _unlockedMachines.value.toMutableList()
+                    list.removeAll { it.rcuId == rcuId }
+                    _unlockedMachines.value = list
+                    context.unlockedMachinesDataStore.updateData { state ->
+                        state.copy(machines = list)
+                    }
+                    if (_unlockedMachines.value.isEmpty()) {
+                        rssiMonitorJob?.cancel()
+                        rssiMonitorJob = null
+                        bleManager.stopGlobalRssiScan()
+                    }
+                    kotlinx.coroutines.delay(5000)
+                    _status.value = Status.Idle
+                }
+
                 LockResult.ERROR -> {
                     _status.value = Status.LockError
                     kotlinx.coroutines.delay(5000)
@@ -320,6 +337,7 @@ sealed class Status(val label: String) {
     object Error : Status ("Cloud- oder BLE Fehler")
     object LockError : Status ("Fehler beim Verriegeln der Maschine")
     object LockTimeout : Status ("Fehler: Maschine ist nicht erreichbar")
+    object LockDeprecated : Status ("Fehler: Gerät wird bereits von einem anderen verwaltet")
 }
 
 

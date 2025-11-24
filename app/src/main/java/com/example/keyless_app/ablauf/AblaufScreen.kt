@@ -588,6 +588,48 @@ fun AblaufScreen(
                 }
             }
 
+            // Error Verriegelungsdialog anzeigen
+            if (status == Status.LockDeprecated) {
+                Dialog(onDismissRequest = { /* bleibt kurz sichtbar */ }) {
+                    Surface(
+                        shape = MaterialTheme.shapes.large,
+                        tonalElevation = 8.dp,
+                        color = Color.White,
+                        modifier = Modifier
+                            .fillMaxWidth(0.85f)
+                            .padding(16.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .padding(24.dp),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Error,
+                                contentDescription = "Timeout",
+                                tint = Color.Red,
+                                modifier = Modifier.size(80.dp)
+                            )
+                            Spacer(Modifier.height(16.dp))
+
+                            Text(
+                                text = "Veralteter Befehl",
+                                style = MaterialTheme.typography.headlineSmall
+                            )
+                            Spacer(Modifier.height(16.dp))
+                            val name = lockMachine
+                            Text(
+                                text = "Diese Anfrage ist nicht mehr gültig.\n" +
+                                "Maschine $name wird vermutlich von einem anderen Gerät gesteuert",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+
             // --- Auswahl-Dialog für mehrere Maschinen ---
             if (status == Status.Auswahl && pendingMachines.isNotEmpty()) {
                 AlertDialog(

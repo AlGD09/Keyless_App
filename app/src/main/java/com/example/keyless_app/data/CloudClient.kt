@@ -116,6 +116,7 @@ class CloudClient @Inject constructor(
             if (response.isSuccessful) {
                 when (response.body()?.status?.lowercase()) {
                     "accepted" -> LockResult.ACCEPTED
+                    "deprecated" -> LockResult.DEPRECATED
                     "timeout" -> LockResult.TIMEOUT
                     else -> LockResult.ERROR
                 }
