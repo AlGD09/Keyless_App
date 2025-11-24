@@ -23,6 +23,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -51,6 +53,9 @@ fun AblaufScreen(
     viewModel: AblaufViewModel = hiltViewModel(),
     onLogout: () -> Unit
 ) {
+
+    var lockMachine by remember { mutableStateOf<String?>(null) }
+
     // ViewModel-Status als State beobachten
     val status by viewModel.status.collectAsState()
     val machines by viewModel.machines.collectAsState()
@@ -328,7 +333,10 @@ fun AblaufScreen(
 
 
                             Button(
-                                onClick = { viewModel.lockMachine(unlocked.rcuId) },
+                                onClick = {
+                                    viewModel.lockMachine(unlocked.rcuId)
+                                    lockMachine = unlocked.name
+                                },
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = Color(0xFF002B49),
                                     contentColor = Color.White // Textfarbe
@@ -476,14 +484,105 @@ fun AblaufScreen(
                                 style = MaterialTheme.typography.headlineSmall
                             )
                             Spacer(Modifier.height(16.dp))
-                            authenticatedMachine?.let { id ->
-                                val name = machines.firstOrNull { it.rcuId == id }?.name ?: id
-                                Text(
-                                    text = "Maschine: $name",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+
+                            val name = lockMachine
+                            Text(
+                                text = "Maschine: $name",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                        }
+                    }
+                }
+            }
+
+            // Timeout Verriegelungsdialog anzeigen
+            if (status == Status.LockTimeout) {
+                Dialog(onDismissRequest = { /* bleibt kurz sichtbar */ }) {
+                    Surface(
+                        shape = MaterialTheme.shapes.large,
+                        tonalElevation = 8.dp,
+                        color = Color.White,
+                        modifier = Modifier
+                            .fillMaxWidth(0.85f)
+                            .padding(16.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .padding(24.dp),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = "Timeout",
+                                tint = Color(0xFFFFA500),
+                                modifier = Modifier.size(80.dp)
+                            )
+                            Spacer(Modifier.height(16.dp))
+
+                            Text(
+                                text = "Maschinenfehler",
+                                style = MaterialTheme.typography.headlineSmall
+                            )
+                            Spacer(Modifier.height(16.dp))
+                            val name = lockMachine
+                            Text(
+                                text = buildAnnotatedString {
+                                    append("Maschine ")
+
+                                    withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                                        append(name)
+                                    }
+
+                                    append(" ist nicht erreichbar.\n")
+                                    append("Bitte verriegeln Sie die Maschine manuell, falls sie noch aktiv ist.")
+                                },
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Error Verriegelungsdialog anzeigen
+            if (status == Status.LockError) {
+                Dialog(onDismissRequest = { /* bleibt kurz sichtbar */ }) {
+                    Surface(
+                        shape = MaterialTheme.shapes.large,
+                        tonalElevation = 8.dp,
+                        color = Color.White,
+                        modifier = Modifier
+                            .fillMaxWidth(0.85f)
+                            .padding(16.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .padding(24.dp),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Error,
+                                contentDescription = "Timeout",
+                                tint = Color.Red,
+                                modifier = Modifier.size(80.dp)
+                            )
+                            Spacer(Modifier.height(16.dp))
+
+                            Text(
+                                text = "Verbindungsfehler",
+                                style = MaterialTheme.typography.headlineSmall
+                            )
+                            Spacer(Modifier.height(16.dp))
+                            val name = lockMachine
+                            Text(
+                                text = "Bitte überprüfen Sie ihre Verbindung zur Keyless Cloud und versuchen Sie es erneut",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 }

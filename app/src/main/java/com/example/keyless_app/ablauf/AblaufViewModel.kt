@@ -58,6 +58,7 @@ class AblaufViewModel @Inject constructor(
     val unlockedMachines = _unlockedMachines.asStateFlow()
 
 
+
     init {
         bleManager.onAuthenticated = { rcuId ->
             viewModelScope.launch {
@@ -219,11 +220,13 @@ class AblaufViewModel @Inject constructor(
     }
 
     fun lockMachine(rcuId: String) {
+
         viewModelScope.launch {
             _status.value = Status.Lock
 
             when (cloudClient.lockMachine(rcuId)) {
                 LockResult.ACCEPTED -> {
+                    _status.value = Status.Locked
                     // Aus der Liste entfernen
                     val list = _unlockedMachines.value.toMutableList()
                     list.removeAll { it.rcuId == rcuId }
@@ -236,12 +239,12 @@ class AblaufViewModel @Inject constructor(
                         rssiMonitorJob = null
                         bleManager.stopGlobalRssiScan()
                     }
-                    _status.value = Status.Locked
                     kotlinx.coroutines.delay(2000)
                     _status.value = Status.Idle
                 }
 
                 LockResult.TIMEOUT -> {
+                    _status.value = Status.LockTimeout
                     val list = _unlockedMachines.value.toMutableList()
                     list.removeAll { it.rcuId == rcuId }
                     _unlockedMachines.value = list
@@ -253,14 +256,13 @@ class AblaufViewModel @Inject constructor(
                         rssiMonitorJob = null
                         bleManager.stopGlobalRssiScan()
                     }
-                    _status.value = Status.LockTimeout
-                    kotlinx.coroutines.delay(2000)
+                    kotlinx.coroutines.delay(5000)
                     _status.value = Status.Idle
                 }
 
                 LockResult.ERROR -> {
                     _status.value = Status.LockError
-                    kotlinx.coroutines.delay(2000)
+                    kotlinx.coroutines.delay(5000)
                     _status.value = Status.Idle
                 }
             }
