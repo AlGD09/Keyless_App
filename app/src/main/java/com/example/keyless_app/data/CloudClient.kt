@@ -12,6 +12,7 @@ import android.content.Context
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.util.concurrent.TimeUnit
 
 /**
  * CloudClient – verwaltet die Kommunikation mit der Cloud.
@@ -36,6 +37,8 @@ class CloudClient @Inject constructor(
 
         val client = OkHttpClient.Builder()
             .addInterceptor(logger)
+            .callTimeout(11, TimeUnit.SECONDS)
+            .readTimeout(11, TimeUnit.SECONDS)
             .build()
 
         val retrofit = Retrofit.Builder()
@@ -104,12 +107,25 @@ class CloudClient @Inject constructor(
         }
     }
 
-    suspend fun lockMachine(rcuId: String): Boolean {
+    suspend fun lockMachine(rcuId: String): LockResult {
         return try {
             val response = api.lockRcu(rcuId)
-            response.isSuccessful
+            if (response.isSuccessful) {
+                when (response.body()?.status?.lowercase()) {
+                    "accepted" -> LockResult.ACCEPTED
+                    "timeout" -> LockResult.TIMEOUT
+                    else -> LockResult.ERROR
+                }
+            } else {
+                Log.e(
+                    "CloudClient",
+                    "Fehler beim Verriegeln: ${response.code()} ${response.message()}"
+                )
+                LockResult.TIMEOUT
+            }
         } catch (e: Exception) {
-            false
+            Log.e("CloudClient", "Verbindungsfehler beim Verriegeln: ${e.message}")
+            LockResult.ERROR
         }
     }
 

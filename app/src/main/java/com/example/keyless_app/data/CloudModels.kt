@@ -10,6 +10,17 @@ data class TokenResponse(
     val auth_token: String?
 )
 
+data class LockResponse(
+    val rcuId: String,
+    val status: String
+)
+
+enum class LockResult {
+    ACCEPTED,
+    TIMEOUT,
+    ERROR
+}
+
 data class RcuResponse(
     val id: Int,
     val rcuId: String,

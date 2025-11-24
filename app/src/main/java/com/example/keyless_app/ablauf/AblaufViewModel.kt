@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import android.util.Log
+import com.example.keyless_app.data.LockResult
 import android.provider.Settings
 import com.example.keyless_app.data.Machine
 import com.example.keyless_app.data.UnlockedMachine
@@ -221,29 +222,47 @@ class AblaufViewModel @Inject constructor(
         viewModelScope.launch {
             _status.value = Status.Lock
 
-            val success = cloudClient.lockMachine(rcuId)
-
-            if (success) {
-                // Aus der Liste entfernen
-                val list = _unlockedMachines.value.toMutableList()
-                list.removeAll { it.rcuId == rcuId }
-                _unlockedMachines.value = list
-                context.unlockedMachinesDataStore.updateData { state ->
-                    state.copy(machines = list)
+            when (cloudClient.lockMachine(rcuId)) {
+                LockResult.ACCEPTED -> {
+                    // Aus der Liste entfernen
+                    val list = _unlockedMachines.value.toMutableList()
+                    list.removeAll { it.rcuId == rcuId }
+                    _unlockedMachines.value = list
+                    context.unlockedMachinesDataStore.updateData { state ->
+                        state.copy(machines = list)
+                    }
+                    if (_unlockedMachines.value.isEmpty()) {
+                        rssiMonitorJob?.cancel()
+                        rssiMonitorJob = null
+                        bleManager.stopGlobalRssiScan()
+                    }
+                    _status.value = Status.Locked
+                    kotlinx.coroutines.delay(2000)
+                    _status.value = Status.Idle
                 }
-                if (_unlockedMachines.value.isEmpty()){
-                    rssiMonitorJob?.cancel()
-                    rssiMonitorJob = null
-                    bleManager.stopGlobalRssiScan()
+
+                LockResult.TIMEOUT -> {
+                    val list = _unlockedMachines.value.toMutableList()
+                    list.removeAll { it.rcuId == rcuId }
+                    _unlockedMachines.value = list
+                    context.unlockedMachinesDataStore.updateData { state ->
+                        state.copy(machines = list)
+                    }
+                    if (_unlockedMachines.value.isEmpty()) {
+                        rssiMonitorJob?.cancel()
+                        rssiMonitorJob = null
+                        bleManager.stopGlobalRssiScan()
+                    }
+                    _status.value = Status.LockTimeout
+                    kotlinx.coroutines.delay(2000)
+                    _status.value = Status.Idle
                 }
 
-                _status.value = Status.Locked
-                kotlinx.coroutines.delay(2000)
-                _status.value = Status.Idle
-
-            } else {
-                // Optional: Fehlermeldung
-                _status.value = Status.LockError
+                LockResult.ERROR -> {
+                    _status.value = Status.LockError
+                    kotlinx.coroutines.delay(2000)
+                    _status.value = Status.Idle
+                }
             }
         }
     }
@@ -298,6 +317,7 @@ sealed class Status(val label: String) {
     object ErrorToken : Status ("Gerät oder User nicht authentifiziert")
     object Error : Status ("Cloud- oder BLE Fehler")
     object LockError : Status ("Fehler beim Verriegeln der Maschine")
+    object LockTimeout : Status ("Fehler: Maschine ist nicht erreichbar")
 }
 
 
