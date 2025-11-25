@@ -54,7 +54,6 @@ fun AblaufScreen(
     onLogout: () -> Unit
 ) {
 
-    var lockMachine by remember { mutableStateOf<String?>(null) }
 
     // ViewModel-Status als State beobachten
     val status by viewModel.status.collectAsState()
@@ -63,6 +62,7 @@ fun AblaufScreen(
     val showUserInfoDialog by viewModel.showUserInfoDialog.collectAsState()
     val pendingMachines by viewModel.pendingMachines.collectAsState()
     val authenticatedMachine by viewModel.authenticatedMachine.collectAsState()
+    val lockedMachine by viewModel.lockedMachine.collectAsState()
 
 
     // --- Animierter Farbverlauf-Hintergrund ---
@@ -335,7 +335,7 @@ fun AblaufScreen(
                             Button(
                                 onClick = {
                                     viewModel.lockMachine(unlocked.rcuId)
-                                    lockMachine = unlocked.name
+                                    // lockMachine = unlocked.name
                                 },
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = Color(0xFF002B49),
@@ -485,7 +485,7 @@ fun AblaufScreen(
                             )
                             Spacer(Modifier.height(16.dp))
 
-                            val name = lockMachine
+                            val name = lockedMachine
                             Text(
                                 text = "Maschine: $name",
                                 style = MaterialTheme.typography.bodyLarge,
@@ -527,7 +527,7 @@ fun AblaufScreen(
                                 style = MaterialTheme.typography.headlineSmall
                             )
                             Spacer(Modifier.height(16.dp))
-                            val name = lockMachine
+                            val name = lockedMachine
                             Text(
                                 text = buildAnnotatedString {
                                     append("Maschine ")
@@ -577,7 +577,7 @@ fun AblaufScreen(
                                 style = MaterialTheme.typography.headlineSmall
                             )
                             Spacer(Modifier.height(16.dp))
-                            val name = lockMachine
+                            val name = lockedMachine
                             Text(
                                 text = "Bitte überprüfen Sie ihre Verbindung zur Keyless Cloud und versuchen Sie es erneut",
                                 style = MaterialTheme.typography.bodyMedium,
@@ -618,7 +618,7 @@ fun AblaufScreen(
                                 style = MaterialTheme.typography.headlineSmall
                             )
                             Spacer(Modifier.height(16.dp))
-                            val name = lockMachine
+                            val name = lockedMachine
                             Text(
                                 text = "Diese Anfrage ist nicht mehr gültig.\n" +
                                 "Maschine $name wird vermutlich von einem anderen Gerät gesteuert",

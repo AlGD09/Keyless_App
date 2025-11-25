@@ -24,7 +24,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.firstOrNull
 import kotlin.collections.firstOrNull
 import kotlinx.coroutines.withTimeoutOrNull
-
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlin.collections.firstOrNull
 
 @HiltViewModel
 class AblaufViewModel @Inject constructor(
@@ -35,7 +37,8 @@ class AblaufViewModel @Inject constructor(
     private var currentJob: Job? = null
     private var rssiMonitorJob: Job? = null  // Job zur RSSI Überwachung entsperrter Maschinen
     private var unlockSignal = CompletableDeferred<Unit>()
-
+    private val lastRssiTimestamps = mutableMapOf<String, Long>()
+    private val RSSI_TIMEOUT_MS = 20_000L
     private val _status = MutableStateFlow<Status>(Status.Idle)
     val status = _status.asStateFlow()
 
@@ -52,6 +55,10 @@ class AblaufViewModel @Inject constructor(
     // Authentifizierte Maschine
     private val _authenticatedMachine = MutableStateFlow<String?>(null)
     val authenticatedMachine = _authenticatedMachine.asStateFlow()
+
+    //Bei Warnungsmeldung Maschinenname korrekt anzeigen
+    private val _lockedMachine = MutableStateFlow<String?>(null)
+    val lockedMachine = _lockedMachine.asStateFlow()
 
     // Entriegelte Maschinen
     private val _unlockedMachines = MutableStateFlow<List<UnlockedMachine>>(emptyList())
@@ -220,6 +227,9 @@ class AblaufViewModel @Inject constructor(
     }
 
     fun lockMachine(rcuId: String) {
+        _lockedMachine.value = _unlockedMachines.value
+            .firstOrNull { it.rcuId == rcuId }
+            ?.name ?: rcuId
 
         viewModelScope.launch {
             _status.value = Status.Lock
@@ -230,6 +240,7 @@ class AblaufViewModel @Inject constructor(
                     // Aus der Liste entfernen
                     val list = _unlockedMachines.value.toMutableList()
                     list.removeAll { it.rcuId == rcuId }
+                    lastRssiTimestamps.remove(rcuId)
                     _unlockedMachines.value = list
                     context.unlockedMachinesDataStore.updateData { state ->
                         state.copy(machines = list)
@@ -247,6 +258,7 @@ class AblaufViewModel @Inject constructor(
                     _status.value = Status.LockTimeout
                     val list = _unlockedMachines.value.toMutableList()
                     list.removeAll { it.rcuId == rcuId }
+                    lastRssiTimestamps.remove(rcuId)
                     _unlockedMachines.value = list
                     context.unlockedMachinesDataStore.updateData { state ->
                         state.copy(machines = list)
@@ -264,6 +276,7 @@ class AblaufViewModel @Inject constructor(
                     _status.value = Status.LockDeprecated
                     val list = _unlockedMachines.value.toMutableList()
                     list.removeAll { it.rcuId == rcuId }
+                    lastRssiTimestamps.remove(rcuId)
                     _unlockedMachines.value = list
                     context.unlockedMachinesDataStore.updateData { state ->
                         state.copy(machines = list)
@@ -289,7 +302,7 @@ class AblaufViewModel @Inject constructor(
     private fun handleRssiUpdate(values: Map<String, Int>) {
         values.forEach { (id, rssi) ->
             Log.i("RSSI", "RCU $id hat RSSI = $rssi")
-
+            lastRssiTimestamps[id] = System.currentTimeMillis()
             if (rssi < -65) {
                 lockMachine(id)
                 Log.i("RSSI", "RCU $id wird verriegelt")
@@ -308,11 +321,37 @@ class AblaufViewModel @Inject constructor(
                 return@launch
             }
 
+            // Initialisierung pro Maschine
+            val startTimestamp = System.currentTimeMillis()
+            unlocked.forEach { rcuId ->
+                lastRssiTimestamps[rcuId] = startTimestamp
+            }
+
             bleManager.startGlobalRssiScan(minCallbackIntervalMs = 2_000L) { id, rssi ->
                 val currentlyUnlocked = _unlockedMachines.value.map { it.rcuId }  // Damit die Liste der aktuellen unlocked Maschinen immer aktuell bleibt
 
                 if (currentlyUnlocked.contains(id)) {
+                    lastRssiTimestamps[id] = System.currentTimeMillis()
                     handleRssiUpdate(mapOf(id to rssi))
+                }
+            }
+
+            while (isActive) {
+                delay(1_000L)
+                val now = System.currentTimeMillis()
+                val currentlyUnlocked = _unlockedMachines.value.map { it.rcuId }
+                val timedOut = currentlyUnlocked.filter { id ->
+                    val lastSeen = lastRssiTimestamps[id] ?: now
+                    now - lastSeen >= RSSI_TIMEOUT_MS
+                }
+
+                timedOut.forEach { id ->
+                    Log.i(
+                        "RSSI",
+                        "RCU $id seit ${RSSI_TIMEOUT_MS / 1000}s nicht gesehen – Verriegelung wird ausgelöst"
+                    )
+                    lastRssiTimestamps[id] = now
+                    lockMachine(id)
                 }
             }
         }
