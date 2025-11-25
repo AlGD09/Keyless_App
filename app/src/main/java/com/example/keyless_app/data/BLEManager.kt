@@ -433,7 +433,7 @@ class BLEManager @Inject constructor(
     }
 
     @SuppressLint("MissingPermission")
-    fun startGlobalRssiScan(onResult: (String, Int) -> Unit) {
+    fun startGlobalRssiScan(minCallbackIntervalMs: Long = 2_000L, onResult: (String, Int) -> Unit) {
         // Wenn schon ein Scan laeuft, nicht noch einmal starten
         if (globalScanRunning) {
             Log.i("BLEManager", "Globaler RSSI Scan laeuft bereits.")
@@ -442,6 +442,8 @@ class BLEManager @Inject constructor(
 
         val now = System.currentTimeMillis()
         val diff = now - lastGlobalScanStartMs
+
+        val lastCallbackByRcuId = mutableMapOf<String, Long>()
 
         // Harte Ratebegrenzung: nicht oefter als alle 35 s einen neuen Start erlauben
         if (diff in 1 until MIN_GLOBAL_SCAN_INTERVAL_MS) {
@@ -476,10 +478,21 @@ class BLEManager @Inject constructor(
                     // 2. Extraer el RCU ID después del guión bajo
                     val rcuId = name.removePrefix("Maschine_")
 
-                    Log.i("BLEManager", "Maschine gefunden: rcuId=$rcuId  rssi=$rssi")
+                    // Log.i("BLEManager", "Maschine gefunden: rcuId=$rcuId  rssi=$rssi")
 
-                    // 3. Enviar al ViewModel
-                    onResult(rcuId, rssi)
+                    // Pro Maschine RSSI Check jede 2s
+                    val nowMs = System.currentTimeMillis()
+                    val lastCallbackMs = lastCallbackByRcuId[rcuId] ?: 0L
+                    val intervalMs = nowMs - lastCallbackMs
+
+                    if (intervalMs >= minCallbackIntervalMs) {
+                        Log.i(
+                            "BLEManager",
+                            "Maschine gefunden: rcuId=$rcuId  rssi=$rssi (alle ${minCallbackIntervalMs}ms)"
+                        )
+                        lastCallbackByRcuId[rcuId] = nowMs
+                        onResult(rcuId, rssi)
+                    }
                 }
             }
 

@@ -308,7 +308,7 @@ class AblaufViewModel @Inject constructor(
                 return@launch
             }
 
-            bleManager.startGlobalRssiScan { id, rssi ->
+            bleManager.startGlobalRssiScan(minCallbackIntervalMs = 2_000L) { id, rssi ->
                 val currentlyUnlocked = _unlockedMachines.value.map { it.rcuId }  // Damit die Liste der aktuellen unlocked Maschinen immer aktuell bleibt
 
                 if (currentlyUnlocked.contains(id)) {
