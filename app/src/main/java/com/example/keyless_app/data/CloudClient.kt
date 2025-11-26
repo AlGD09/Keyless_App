@@ -38,8 +38,8 @@ class CloudClient @Inject constructor(
 
         val client = OkHttpClient.Builder()
             .addInterceptor(logger)
-            .callTimeout(11, TimeUnit.SECONDS)
-            .readTimeout(11, TimeUnit.SECONDS)
+            .callTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(10, TimeUnit.SECONDS)
             .build()
 
         val retrofit = Retrofit.Builder()
