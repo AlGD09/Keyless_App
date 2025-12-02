@@ -90,7 +90,8 @@ class CloudClient @Inject constructor(
                     Machine(
                         rcuId = rcu.rcuId,
                         name = rcu.name,
-                        location = rcu.location.ifBlank { "unbekannter Ort" }
+                        location = rcu.location.ifBlank { "unbekannter Ort" },
+                        status = rcu.status.ifBlank { "unbekannter Status" }
                     )
                 }
                 Log.i("CloudClient", "Zugewiesene Maschinen empfangen: ${machines.size}")

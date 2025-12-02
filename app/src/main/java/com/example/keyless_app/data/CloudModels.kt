@@ -51,5 +51,6 @@ data class AssignedSmartphone(
 data class Machine(
     val rcuId: String,
     val name: String,
-    val location: String
+    val location: String,
+    val status: String
 )

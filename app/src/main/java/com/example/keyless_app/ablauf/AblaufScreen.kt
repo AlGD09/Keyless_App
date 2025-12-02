@@ -37,6 +37,8 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -207,18 +209,6 @@ fun AblaufScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Column {
-                                Text(
-                                    buildAnnotatedString {
-                                        withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
-                                            append("Maschine ${index + 1}")
-                                        }
-                                        append(" - ${machine.name}")
-                                    }
-                                )
-                                Text("Standort: ${machine.location}")
-                            }
-
                             // Bild je nach Maschinentyp auswählen
                             val imageRes = when {
                                 machine.name.contains("Bagger", ignoreCase = true) -> R.drawable.baggersymbol
@@ -226,14 +216,57 @@ fun AblaufScreen(
                                 machine.name.contains("Walze", ignoreCase = true) -> R.drawable.walzesymbol
                                 else -> R.drawable.maschinesymbol
                             }
-
                             Image(
                                 painter = painterResource(id = imageRes),
                                 contentDescription = "Maschinen-Symbol",
                                 modifier = Modifier
                                     .size(48.dp)
-                                    .padding(start = 8.dp)
+                                //.padding(start = 2.dp)
                             )
+                            Column {
+                                Text(
+                                    buildAnnotatedString {
+                                        withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                                            append("${machine.name} ")
+                                        }
+                                    }
+                                )
+                                Text("Standort: ${machine.location}")
+                            }
+
+                            val changeStatus = when {
+                                machine.status.contains("Remote", ignoreCase = true) -> "Ferngest."
+                                else -> machine.status
+                            }
+
+                            val displayStatus = changeStatus.replaceFirstChar {
+                                if (it.isLowerCase()) it.titlecase() else it.toString()
+                            }
+
+                            val statusColor = when {
+                                machine.status == "idle" -> Color(0xFF16A34A) // green-600
+                                machine.status == "offline" -> Color(0xFF4B5563) // gray-600
+                                machine.status == "operational" -> Color(0xFFC2410C) // orange-700
+                                machine.status.contains("Remote") -> Color(0xFFC2410C) // orange-700
+                                else -> Color(0xFF6B7280) // gray-500
+                            }
+
+
+                            Text(
+                                text = displayStatus,
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = statusColor,
+                                modifier = Modifier
+                                    .width(90.dp)
+                                    .wrapContentHeight()
+                                    .padding(start = 1.dp)
+                                    .align(Alignment.CenterVertically),
+                                textAlign = TextAlign.Center     // ❗ Zentriert
+                            )
+
+
                         }
                     }
                 }
