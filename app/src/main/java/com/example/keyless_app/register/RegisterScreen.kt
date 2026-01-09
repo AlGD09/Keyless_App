@@ -1,6 +1,5 @@
 package com.example.keyless_app.register
 
-import android.content.Context
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,9 +19,13 @@ import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.font.FontStyle
+import com.example.keyless_app.register.RegisterViewModel
 
 @Composable
-fun RegisterScreen(onRegistered: () -> Unit) {
+fun RegisterScreen(
+    registerViewModel: RegisterViewModel,
+    onRegistered: () -> Unit
+) {
     val context = LocalContext.current
     var userName by remember { mutableStateOf("") }
     var secretHash by remember { mutableStateOf("") }
@@ -106,7 +109,7 @@ fun RegisterScreen(onRegistered: () -> Unit) {
             Spacer(Modifier.height(30.dp))
 
             Button(onClick = {
-                saveCredentials(context, userName, secretHash)
+                registerViewModel.register(userName, secretHash)
                 onRegistered()
             }) {
                 Text("Speichern")
@@ -176,12 +179,4 @@ fun RegisterScreen(onRegistered: () -> Unit) {
             )
         }
     }
-}
-
-fun saveCredentials(context: Context, userName: String, secretHash: String) {
-    val prefs = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-    prefs.edit()
-        .putString("userName", userName)
-        .putString("secretHash", secretHash)
-        .apply()
 }

@@ -39,6 +39,26 @@ class MainRepository @Inject constructor(
         return cloudClient.fetchToken(userName, secretHash)
     }
 
+    fun isUserRegistered(): Boolean {
+        val prefs = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+        val userName = prefs.getString("userName", null)
+        val secretHash = prefs.getString("secretHash", null)
+        return !userName.isNullOrBlank() && !secretHash.isNullOrBlank()
+    }
+
+    fun saveCredentials(userName: String, secretHash: String) {
+        val prefs = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+        prefs.edit()
+            .putString("userName", userName)
+            .putString("secretHash", secretHash)
+            .apply()
+    }
+
+    fun clearCredentials() {
+        val prefs = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+        prefs.edit().clear().apply()
+    }
+
     suspend fun fetchAssignedMachines(): List<Machine> = cloudClient.fetchAssignedMachines()
 
     suspend fun lockMachine(rcuId: String): LockResult = cloudClient.lockMachine(rcuId)
