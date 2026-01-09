@@ -1,11 +1,10 @@
 package com.example.keyless_app.ablauf
 
 import android.content.Context
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.keyless_app.data.BLEManager
-import com.example.keyless_app.data.CloudClient
+import com.example.keyless_app.data.BleEvent
+import com.example.keyless_app.data.MainRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,18 +20,14 @@ import com.example.keyless_app.data.unlockedMachinesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.firstOrNull
-import kotlin.collections.firstOrNull
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import kotlin.collections.firstOrNull
 
 @HiltViewModel
 class AblaufViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val cloudClient: CloudClient,
-    private val bleManager: BLEManager
+    private val mainRepository: MainRepository
 ) : ViewModel() {
     private var currentJob: Job? = null
     private var rssiMonitorJob: Job? = null  // Job zur RSSI Überwachung entsperrter Maschinen
@@ -67,61 +62,57 @@ class AblaufViewModel @Inject constructor(
 
 
     init {
-        bleManager.onAuthenticated = { rcuId ->
-            viewModelScope.launch {
-                _authenticatedMachine.value = rcuId
-
-                _status.value = Status.Authentifiziert
-            }
-        }
-
-        bleManager.onUnlocked = { rcuId ->
-            viewModelScope.launch {
-
-                // Maschine ein einziges Mal suchen
-                val machine = _machines.value.firstOrNull { it.rcuId == rcuId }
-
-                val name = machine?.name ?: "Unbekannte Maschine"
-                val location = machine?.location ?: "Unbekannter Standort"
-
-                // RCU in Liste der entriegelten Maschinen eintragen
-                val current = _unlockedMachines.value.toMutableList()
-                if (current.none { it.rcuId == rcuId }) {
-                    current.add(
-                        UnlockedMachine(
-                            rcuId = rcuId,
-                            name = name,
-                            location = location
-                        )
-                    )
-                    _unlockedMachines.value = current
-                    context.unlockedMachinesDataStore.updateData { state ->
-                        state.copy(machines = current)
+        viewModelScope.launch {
+            mainRepository.bleEvents.collect { event ->
+                when (event) {
+                    is BleEvent.Authenticated -> {
+                        _authenticatedMachine.value = event.rcuId
+                        _status.value = Status.Authentifiziert
                     }
-                    Log.i("AblaufViewModel", "Entsperrte Maschinen registriert")
-                }
-                _status.value = Status.Entsperrt
-                kotlinx.coroutines.delay(4000)
+                    is BleEvent.Unlocked -> {
+                        // Maschine ein einziges Mal suchen
+                        val machine = _machines.value.firstOrNull { it.rcuId == event.rcuId }
 
-                if (!unlockSignal.isCompleted) {
-                    unlockSignal.complete(Unit)
-                }
+                        val name = machine?.name ?: "Unbekannte Maschine"
+                        val location = machine?.location ?: "Unbekannter Standort"
 
-                startRssiMonitor()
+                        // RCU in Liste der entriegelten Maschinen eintragen
+                        val current = _unlockedMachines.value.toMutableList()
+                        if (current.none { it.rcuId == event.rcuId }) {
+                            current.add(
+                                UnlockedMachine(
+                                    rcuId = event.rcuId,
+                                    name = name,
+                                    location = location
+                                )
+                            )
+                            _unlockedMachines.value = current
+                            context.unlockedMachinesDataStore.updateData { state ->
+                                state.copy(machines = current)
+                            }
+                            Log.i("AblaufViewModel", "Entsperrte Maschinen registriert")
+                        }
+                        _status.value = Status.Entsperrt
+                        kotlinx.coroutines.delay(4000)
 
+                        if (!unlockSignal.isCompleted) {
+                            unlockSignal.complete(Unit)
+                        }
 
-            }
-
-        }
-
-        bleManager.onChallengeCollectionFinished = { collectedIds ->
-            viewModelScope.launch {
-                if (collectedIds.isNotEmpty()) {
-                    Log.i("AblaufViewModel", "Challenges empfangen von ${collectedIds.size} Maschinen: $collectedIds")
-                    _pendingMachines.value = collectedIds
-                    _status.value = Status.Auswahl
-                } else {
-                    Log.i("AblaufViewModel", "Keine Challenges empfangen.")
+                        startRssiMonitor()
+                    }
+                    is BleEvent.ChallengeCollectionFinished -> {
+                        if (event.collectedIds.isNotEmpty()) {
+                            Log.i(
+                                "AblaufViewModel",
+                                "Challenges empfangen von ${event.collectedIds.size} Maschinen: ${event.collectedIds}"
+                            )
+                            _pendingMachines.value = event.collectedIds
+                            _status.value = Status.Auswahl
+                        } else {
+                            Log.i("AblaufViewModel", "Keine Challenges empfangen.")
+                        }
+                    }
                 }
             }
         }
@@ -149,29 +140,24 @@ class AblaufViewModel @Inject constructor(
         currentJob = viewModelScope.launch {
             _status.value = Status.CloudConnecting
             try {
-                val token = cloudClient.fetchToken() ?: throw Exception("Cloud-Fehler")
+                val token = mainRepository.fetchToken() ?: throw Exception("Cloud-Fehler")
                 if (token.isEmpty()){
                     _status.value = Status.ErrorToken
                 }
                 _status.value = Status.LoadingMachines
-                val assignedMachines = cloudClient.fetchAssignedMachines()
+                val assignedMachines = mainRepository.fetchAssignedMachines()
                 _machines.value = assignedMachines
-                if (assignedMachines.size > 1) {
-                    bleManager.multiMachineMode = true
-                } else {
-                    bleManager.multiMachineMode = false
-                }
+                val multiMachineMode = assignedMachines.size > 1
                 _status.value = Status.CloudSuccess
-                bleManager.setToken(token)
                 _status.value = Status.BLEStarting
-                // bleManager.stopGattServer()      // <- alter GATT-Server beenden
-                bleManager.stopAdvertising()     // <- altes Advertising stoppen
-                bleManager.startGattServer()
                 _status.value = Status.BLEServer
                 _status.value = Status.BLEAdvertise
-                // bleManager.startAdvertisingForDuration(45_000)
                 launch {
-                    bleManager.startAdvertisingForDuration(45_000)
+                    mainRepository.startBleProcess(
+                        token = token,
+                        multiMachineMode = multiMachineMode,
+                        advertiseDurationMs = 45_000
+                    )
                 }
                 // Adervtising Dauer unterbrechen falls Entsperrt kommt
                 withTimeoutOrNull(45_000) {
@@ -180,7 +166,7 @@ class AblaufViewModel @Inject constructor(
                 _status.value = Status.BLEStopped
                 _authenticatedMachine.value = null // Variable zurücksetzen wenn Prozess abgeschlossen ist
                 _machines.value = emptyList()
-                bleManager.stopGattServer()
+                mainRepository.stopBleProcess()
                 _status.value = Status.Idle
             } catch (e: Exception) {
                 if (e.message?.contains("401") == true || e.message?.contains("Unauthorized") == true) {
@@ -214,7 +200,7 @@ class AblaufViewModel @Inject constructor(
                 _status.value = Status.BLEProcessing
 
                 // BLEManager übergeben, welche Maschine verarbeitet werden soll
-                bleManager.processSelectedMachine(rcuId)
+                mainRepository.processSelectedMachine(rcuId)
 
                 // Jetzt macht BLEManager alles Weitere selbst.
                 // Das ViewModel wartet darauf, dass BLEManager.onAuthenticated aufgerufen wird.
@@ -234,7 +220,7 @@ class AblaufViewModel @Inject constructor(
         viewModelScope.launch {
             _status.value = Status.Lock
 
-            when (cloudClient.lockMachine(rcuId)) {
+            when (mainRepository.lockMachine(rcuId)) {
                 LockResult.ACCEPTED -> {
                     _status.value = Status.Locked
                     // Aus der Liste entfernen
@@ -248,7 +234,7 @@ class AblaufViewModel @Inject constructor(
                     if (_unlockedMachines.value.isEmpty()) {
                         rssiMonitorJob?.cancel()
                         rssiMonitorJob = null
-                        bleManager.stopGlobalRssiScan()
+                        mainRepository.stopGlobalRssiScan()
                     }
                     kotlinx.coroutines.delay(2000)
                     _status.value = Status.Idle
@@ -266,7 +252,7 @@ class AblaufViewModel @Inject constructor(
                     if (_unlockedMachines.value.isEmpty()) {
                         rssiMonitorJob?.cancel()
                         rssiMonitorJob = null
-                        bleManager.stopGlobalRssiScan()
+                        mainRepository.stopGlobalRssiScan()
                     }
                     kotlinx.coroutines.delay(5000)
                     _status.value = Status.Idle
@@ -284,7 +270,7 @@ class AblaufViewModel @Inject constructor(
                     if (_unlockedMachines.value.isEmpty()) {
                         rssiMonitorJob?.cancel()
                         rssiMonitorJob = null
-                        bleManager.stopGlobalRssiScan()
+                        mainRepository.stopGlobalRssiScan()
                     }
                     kotlinx.coroutines.delay(5000)
                     _status.value = Status.Idle
@@ -327,7 +313,7 @@ class AblaufViewModel @Inject constructor(
                 lastRssiTimestamps[rcuId] = startTimestamp
             }
 
-            bleManager.startGlobalRssiScan(minCallbackIntervalMs = 2_000L) { id, rssi ->
+            mainRepository.startGlobalRssiScan(minCallbackIntervalMs = 2_000L) { id, rssi ->
                 val currentlyUnlocked = _unlockedMachines.value.map { it.rcuId }  // Damit die Liste der aktuellen unlocked Maschinen immer aktuell bleibt
 
                 if (currentlyUnlocked.contains(id)) {
