@@ -51,14 +51,9 @@ class CloudClient @Inject constructor(
         api = retrofit.create(CloudApi::class.java)
     }
 
-    suspend fun fetchToken(): String? {
-        val prefs = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-        //val userName = "Admin"           // später dynamisch
-        //val deviceId = "bd45e75870af93c2"    // BLE-Device-ID
+    suspend fun fetchToken(userName: String, secretHash: String): String? {
+
         val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
-        //val secretHash = "cc03e747a6afbbcbf8be7668acfebee5"   // Dummy-Wert
-        val userName = prefs.getString("userName", "") ?: ""
-        val secretHash = prefs.getString("secretHash", "") ?: ""
 
         return try {
             val response = api.requestToken(TokenRequest(userName, deviceId, secretHash))

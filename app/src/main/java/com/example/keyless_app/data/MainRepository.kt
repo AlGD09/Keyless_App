@@ -32,7 +32,12 @@ class MainRepository @Inject constructor(
         }
     }
 
-    suspend fun fetchToken(): String? = cloudClient.fetchToken()
+    suspend fun fetchToken(): String? {
+        val prefs = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+        val userName = prefs.getString("userName", "") ?: ""
+        val secretHash = prefs.getString("secretHash", "") ?: ""
+        return cloudClient.fetchToken(userName, secretHash)
+    }
 
     suspend fun fetchAssignedMachines(): List<Machine> = cloudClient.fetchAssignedMachines()
 
