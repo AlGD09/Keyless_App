@@ -1,6 +1,6 @@
 package com.example.keyless_app.ablauf
 
-import android.content.Context
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.keyless_app.data.BleEvent
@@ -13,11 +13,8 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import android.util.Log
 import com.example.keyless_app.data.LockResult
-import android.provider.Settings
 import com.example.keyless_app.data.Machine
 import com.example.keyless_app.data.UnlockedMachine
-import com.example.keyless_app.data.unlockedMachinesDataStore
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.withTimeoutOrNull
@@ -26,7 +23,6 @@ import kotlinx.coroutines.isActive
 
 @HiltViewModel
 class AblaufViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
     private val mainRepository: MainRepository
 ) : ViewModel() {
     private var currentJob: Job? = null
@@ -87,9 +83,7 @@ class AblaufViewModel @Inject constructor(
                                 )
                             )
                             _unlockedMachines.value = current
-                            context.unlockedMachinesDataStore.updateData { state ->
-                                state.copy(machines = current)
-                            }
+                            mainRepository.saveUnlockedMachines(current)
                             Log.i("AblaufViewModel", "Entsperrte Maschinen registriert")
                         }
                         _status.value = Status.Entsperrt
@@ -119,8 +113,8 @@ class AblaufViewModel @Inject constructor(
 
         // Beim Start alle noch offene Maschinen anzeigen
         viewModelScope.launch {
-            context.unlockedMachinesDataStore.data.collect { state ->
-                _unlockedMachines.value = state.machines
+            mainRepository.unlockedMachinesFlow().collect { machines ->
+                _unlockedMachines.value = machines
 
                 // RSSI-Check auch nach App Kill wiederstarten
                 /*if (_unlockedMachines.value.isNotEmpty()){
@@ -185,12 +179,11 @@ class AblaufViewModel @Inject constructor(
     }
 
     fun getUserName(): String {
-        val prefs = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-        return prefs.getString("userName", "") ?: "Unbekannt"
+        return mainRepository.getUserName()
     }
 
     fun getDeviceId(): String {
-        return Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+        return mainRepository.getDeviceId()
     }
 
     fun handleMachineSelection(rcuId: String) {
@@ -228,9 +221,7 @@ class AblaufViewModel @Inject constructor(
                     list.removeAll { it.rcuId == rcuId }
                     lastRssiTimestamps.remove(rcuId)
                     _unlockedMachines.value = list
-                    context.unlockedMachinesDataStore.updateData { state ->
-                        state.copy(machines = list)
-                    }
+                    mainRepository.saveUnlockedMachines(list)
                     if (_unlockedMachines.value.isEmpty()) {
                         rssiMonitorJob?.cancel()
                         rssiMonitorJob = null
@@ -246,9 +237,7 @@ class AblaufViewModel @Inject constructor(
                     list.removeAll { it.rcuId == rcuId }
                     lastRssiTimestamps.remove(rcuId)
                     _unlockedMachines.value = list
-                    context.unlockedMachinesDataStore.updateData { state ->
-                        state.copy(machines = list)
-                    }
+                    mainRepository.saveUnlockedMachines(list)
                     if (_unlockedMachines.value.isEmpty()) {
                         rssiMonitorJob?.cancel()
                         rssiMonitorJob = null
@@ -264,9 +253,7 @@ class AblaufViewModel @Inject constructor(
                     list.removeAll { it.rcuId == rcuId }
                     lastRssiTimestamps.remove(rcuId)
                     _unlockedMachines.value = list
-                    context.unlockedMachinesDataStore.updateData { state ->
-                        state.copy(machines = list)
-                    }
+                    mainRepository.saveUnlockedMachines(list)
                     if (_unlockedMachines.value.isEmpty()) {
                         rssiMonitorJob?.cancel()
                         rssiMonitorJob = null

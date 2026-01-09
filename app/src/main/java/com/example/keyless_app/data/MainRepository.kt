@@ -1,11 +1,16 @@
 package com.example.keyless_app.data
 
+import android.content.Context
+import android.provider.Settings
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 class MainRepository @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val cloudClient: CloudClient,
     private val bleManager: BLEManager
 ) {
@@ -32,6 +37,25 @@ class MainRepository @Inject constructor(
     suspend fun fetchAssignedMachines(): List<Machine> = cloudClient.fetchAssignedMachines()
 
     suspend fun lockMachine(rcuId: String): LockResult = cloudClient.lockMachine(rcuId)
+
+    fun unlockedMachinesFlow(): Flow<List<UnlockedMachine>> {
+        return context.unlockedMachinesDataStore.data.map { it.machines }
+    }
+
+    suspend fun saveUnlockedMachines(machines: List<UnlockedMachine>) {
+        context.unlockedMachinesDataStore.updateData { state ->
+            state.copy(machines = machines)
+        }
+    }
+
+    fun getUserName(): String {
+        val prefs = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+        return prefs.getString("userName", "") ?: "Unbekannt"
+    }
+
+    fun getDeviceId(): String {
+        return Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+    }
 
     suspend fun startBleProcess(
         token: String,

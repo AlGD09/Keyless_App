@@ -26,7 +26,8 @@ object AppModule {
     @Provides
     @Singleton
     fun provideKeylessRepository(
+        @ApplicationContext context: Context,
         cloudClient: CloudClient,
         bleManager: BLEManager
-    ): MainRepository = MainRepository(cloudClient, bleManager)
+    ): MainRepository = MainRepository(context, cloudClient, bleManager)
 }
