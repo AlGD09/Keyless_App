@@ -19,7 +19,7 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        testInstrumentationRunner = "com.google.dagger.hilt.android.testing.HiltTestRunner"
+        testInstrumentationRunner = "com.example.keyless_app.HiltTestRunner"
     }
 
     buildTypes {
@@ -59,6 +59,7 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation("androidx.test:runner:1.5.2")
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation("com.google.dagger:hilt-android-testing:2.51.1")

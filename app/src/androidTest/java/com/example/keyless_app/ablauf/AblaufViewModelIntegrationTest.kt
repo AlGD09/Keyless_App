@@ -56,6 +56,7 @@ class AblaufViewModelIntegrationTest {
         val lockedRcuIds = mutableListOf<String>()
         val savedUnlockedMachines = mutableListOf<List<UnlockedMachine>>()
         var stopScanCalls = 0
+        var rssiCallback: ((String, Int) -> Unit)? = null
 
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         assertEquals("com.example.keyless_app", context.packageName)
@@ -72,8 +73,7 @@ class AblaufViewModelIntegrationTest {
             LockResult.ACCEPTED
         }
         every { repository.startGlobalRssiScan(any(), any()) } answers {
-            val callback = secondArg<(String, Int) -> Unit>()
-            callback(rcuId, -70)
+            rssiCallback = secondArg<(String, Int) -> Unit>()
         }
         every { repository.stopGlobalRssiScan() } answers {
             stopScanCalls += 1
@@ -82,7 +82,11 @@ class AblaufViewModelIntegrationTest {
 
         bleEvents.emit(BleEvent.Unlocked(rcuId))
 
+        advanceUntilIdle()
         advanceTimeBy(4_000)
+        advanceUntilIdle()
+
+        rssiCallback?.invoke(rcuId, -70)
         advanceUntilIdle()
 
         assertEquals(listOf(rcuId), lockedRcuIds)
